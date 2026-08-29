@@ -1,0 +1,108 @@
+@import 'tailwindcss';
+
+/* Theme is a class on <html>, set from localStorage before first paint.
+   Not a media query — the user chooses, and the choice persists. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* Newsreader throughout. One typeface; the two layers differ in weight of
+     presence, not in voice. */
+  --font-read: 'Newsreader Variable', Newsreader, Georgia, serif;
+
+  /* Ink on paper */
+  --color-paper: #faf8f4;
+  --color-ink: #141210;
+  --color-graphite: #6b6862;
+  --color-rule: #e3dfd7;
+
+  /* Lamp — the dark ground */
+  --color-lamp: #1a1714;
+  --color-lamp-ink: #ede9e1;
+  --color-lamp-gph: #8b857b;
+
+  /* The only colour in the product. Flip rate, and nothing else. */
+  --color-signal: #b0472c;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-read);
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+  text-rendering: optimizeLegibility;
+}
+
+/* Reading size, set from Settings. Pinch-zoom is disabled in the reader so
+   that double-tap can save a word, so this control gives the size back. */
+:root {
+  --read-size: 19px;
+}
+
+/* German is ink: printed, full contrast. Compounds must hyphenate or they tear
+   rivers of whitespace through a phone-width column. Requires lang="de". */
+.type-de {
+  font-size: var(--read-size);
+  line-height: 1.65;
+  letter-spacing: -0.006em;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+
+/* English in the reader: the same metrics as the German it replaces, so the
+   flip changes the voice and not the shape of the column. Only the colour
+   separates them. No hyphenation — English has no compounds to break. */
+.type-en-read {
+  font-size: var(--read-size);
+  line-height: 1.65;
+  letter-spacing: -0.006em;
+}
+
+/* English elsewhere in the app: chrome, not prose. Set smaller and looser. */
+.type-en {
+  font-size: calc(var(--read-size) - 2px);
+  line-height: 1.55;
+  letter-spacing: 0.01em;
+}
+
+/*
+ * A saved word carries a 1px graphite rule just under the baseline. It is
+ * drawn with a background gradient rather than text-decoration because only a
+ * background can be animated, and the mark has to draw itself in — otherwise
+ * saving a word gives no feedback at all, and double-tap-to-remove has no
+ * visible target.
+ *
+ * Every word carries the gradient at zero width, so save and remove are a
+ * transition on an existing style rather than a newly mounted one.
+ */
+.word {
+  background-image: linear-gradient(var(--color-graphite), var(--color-graphite));
+  background-repeat: no-repeat;
+  background-position: left bottom 2px;
+  background-size: 0% 1px;
+  transition: background-size 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+:root.dark .word {
+  background-image: linear-gradient(var(--color-lamp-gph), var(--color-lamp-gph));
+}
+
+.word.is-saved {
+  background-size: 100% 1px;
+}
+
+/* Wipes out in the same direction it drew in: left to right. */
+.word.is-exiting {
+  background-position: right bottom 2px;
+  background-size: 0% 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .word {
+    transition: none;
+  }
+}
