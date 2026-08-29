@@ -2,6 +2,8 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { TypeSizeProvider } from './context/TypeSizeContext';
 import { useDefinitionRetry } from './hooks/useDefinitionRetry';
+import { usePersistentStorage } from './hooks/usePersistentStorage';
+import { useSeed } from './hooks/useSeed';
 import Shell from './components/Shell';
 import HomePage from './pages/HomePage';
 import ReaderPage from './pages/ReaderPage';
@@ -14,6 +16,8 @@ import NotFoundPage from './pages/NotFoundPage';
 
 export default function App() {
   useDefinitionRetry();
+  usePersistentStorage();
+  useSeed();
 
   return (
     <ThemeProvider>

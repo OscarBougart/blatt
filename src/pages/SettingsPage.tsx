@@ -1,3 +1,4 @@
+import BackupSection from '@/components/BackupSection';
 import Page from '@/components/Page';
 import { useTheme } from '@/context/ThemeContext';
 import { TYPE_SIZES, useTypeSize } from '@/context/TypeSizeContext';
@@ -44,6 +45,8 @@ export default function SettingsPage() {
           ))}
         </div>
       </div>
+
+      <BackupSection />
 
       <p className="type-en mt-10 text-graphite dark:text-lamp-gph">
         Definitions come from{' '}

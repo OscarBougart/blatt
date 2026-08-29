@@ -27,3 +27,4 @@ dist-ssr
 lemma-report.txt
 scripts/.story-cache.txt
 scripts/.form-cache.json
+scripts/.seed-cache/

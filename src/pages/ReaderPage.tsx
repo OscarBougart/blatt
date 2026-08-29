@@ -1,20 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { db } from '@/db/db';
 import type { Doc } from '@/db/types';
-import GermanParagraph from '@/components/GermanParagraph';
+import ReaderPane from '@/components/ReaderPane';
 import { useCurrentParagraph } from '@/hooks/useCurrentParagraph';
 import { useDwell } from '@/hooks/useDwell';
 import { useReadingSession } from '@/hooks/useReadingSession';
 import { useSavedWords } from '@/hooks/useSavedWords';
 import { useSwipe } from '@/hooks/useSwipe';
-import { useWordDoubleTap } from '@/hooks/useWordDoubleTap';
+import { useFlipHint, HINT_SHIFT } from '@/hooks/useFlipHint';
+import { useWordSaving } from '@/hooks/useWordSaving';
 import { lemmatizeDocument } from '@/lib/lemma/lemmatizeDocument';
-import { locate } from '@/lib/segment';
 
 type Side = 'de' | 'en';
 
 const SLIDE_MS = 260;
+const HINT_MS = 520;
 const EASE = 'cubic-bezier(.2,.8,.2,1)';
 
 /** Breathing room above the paragraph a flip or a restore lands on. */
@@ -33,6 +34,7 @@ function scrollToParagraph(pane: HTMLElement | null, index: number) {
  */
 export default function ReaderPage() {
   const { docId } = useParams<{ docId: string }>();
+  const navigate = useNavigate();
   const [doc, setDoc] = useState<Doc | null>(null);
   const [side, setSide] = useState<Side>('de');
   const [restoreTo, setRestoreTo] = useState<number | null>(null);
@@ -138,6 +140,10 @@ export default function ReaderPage() {
     void db.docs.update(docId, { lastParagraphIndex: current });
   }, [docId, current, tracking]);
 
+  // Nothing on this screen can advertise the flip, so the page demonstrates it
+  // once, on a first visit, and then never again.
+  const { hinting, seen } = useFlipHint(tracking);
+
   /**
    * The flip carries the paragraph index across, not the scroll offset. German
    * and English paragraphs are different heights, so pixels would land you
@@ -160,67 +166,49 @@ export default function ReaderPage() {
       }
 
       sideRef.current = to;
+      if (to === 'en') seen();
       touch();
       setSide(to);
     },
-    [deCurrent, enCurrent, dePane, enPane, setDeCurrent, setEnCurrent, touch],
+    [deCurrent, enCurrent, dePane, enPane, setDeCurrent, setEnCurrent, touch, seen],
   );
 
+  /**
+   * One gesture, one idea: swipe right to go back, a step at a time.
+   *
+   * English → German → the library. Swiping right on the German pane is the
+   * only way out of the reader, which is why it has to be here and not in the
+   * flip: there is no chrome on this screen and, installed as a PWA, no
+   * browser back button either.
+   */
   const onSwipe = useCallback(
     (direction: 'left' | 'right') => {
       lastSwipeAt.current = Date.now();
-      // Right-to-left drags English in from the right; left-to-right pushes
-      // it back off. The gesture and the motion go the same way.
-      flip(direction === 'left' ? 'en' : 'de');
-    },
-    [flip],
-  );
-  const swipe = useSwipe(onSwipe);
 
-  /**
-   * Double-tap a German word to save it, double-tap a saved one to remove it.
-   *
-   * No sheet, no modal, no confirmation. The only feedback is the underline
-   * drawing itself in, and that is the point: saving a word must not interrupt
-   * reading even for a moment.
-   */
-  const onDoubleTap = useCallback(
-    (key: string, element: HTMLElement) => {
-      if (!doc) return;
-      touch();
-
-      const existing = saved.get(key);
-      if (existing) {
-        void remove(key, existing.id);
+      // Right-to-left drags English in from the right; left-to-right pushes it
+      // back off. The gesture and the motion go the same way.
+      if (direction === 'left') {
+        flip('en');
         return;
       }
 
-      const paragraphIndex = Number(element.dataset.p);
-      const offset = Number(element.dataset.o);
-      const surface = element.dataset.w ?? '';
-      const paragraph = doc.pairs[paragraphIndex]?.de ?? '';
-      const { sentence, charOffset } = locate(paragraph, offset);
+      if (sideRef.current === 'en') {
+        flip('de');
+        return;
+      }
 
-      // The lemma was worked out at import; this is a map lookup, never a
-      // network call. If the map has nothing, the surface form is the lemma.
-      const lemma = doc.lemmaMap?.[surface]?.[0]?.lemma ?? surface;
-
-      void save({ surface, lemma, sentence, charOffset, paragraphIndex });
+      void navigate('/');
     },
-    [doc, saved, save, remove, touch],
+    [flip, navigate],
   );
+  const swipe = useSwipe(onSwipe);
 
   // A swipe ends in a click on some browsers. Flipping the language and saving
   // a word with the same gesture would be maddening.
   const ignoreTap = useCallback(() => Date.now() - lastSwipeAt.current < 400, []);
-  const onWordTap = useWordDoubleTap(onDoubleTap, ignoreTap);
+  const onWordTap = useWordSaving({ doc, saved, save, remove, touch, ignoreTap });
 
   if (!doc) return null;
-
-  const panes = [
-    { key: 'de' as const, label: 'German', register: deRegister },
-    { key: 'en' as const, label: 'English', register: enRegister },
-  ];
 
   return (
     <div
@@ -232,66 +220,47 @@ export default function ReaderPage() {
       <div
         className="flex h-full w-[200%] will-change-transform"
         style={{
-          transform: side === 'de' ? 'translateX(0)' : 'translateX(-50%)',
-          transition: `transform ${SLIDE_MS}ms ${EASE}`,
+          transform:
+            side === 'en'
+              ? 'translateX(-50%)'
+              : hinting
+                ? `translateX(${HINT_SHIFT})`
+                : 'translateX(0)',
+          // The hint moves more slowly than a flip: it is being shown to you,
+          // not performed by you.
+          transition: `transform ${hinting ? HINT_MS : SLIDE_MS}ms ${EASE}`,
         }}
       >
-        {panes.map((entry) => {
-          const isActive = entry.key === side;
-          const isGerman = entry.key === 'de';
-          return (
-            <section
-              key={entry.key}
-              ref={isGerman ? setDePane : setEnPane}
-              aria-label={entry.label}
-              aria-hidden={!isActive}
-              // The off-screen pane must not be reachable by keyboard, by
-              // screen reader, or by find-in-page. Never both languages at once.
-              {...{ inert: isActive ? undefined : '' }}
-              className="relative h-full w-1/2 select-none overflow-y-auto overscroll-contain"
-              // `manipulation` removes the browser's double-tap zoom, which
-              // would otherwise fight the save gesture, and its 300ms click
-              // delay with it. Settings carries the type-size control, because
-              // this also disables pinch-zoom.
-              style={{ touchAction: 'manipulation' }}
-            >
-              <article
-                className={`mx-auto max-w-[34rem] px-7 pb-[40vh] pt-16 ${
-                  isGerman
-                    ? 'text-ink dark:text-lamp-ink'
-                    : 'text-graphite dark:text-lamp-gph'
-                }`}
-              >
-                {doc.pairs.map((pair, i) =>
-                  isGerman ? (
-                    <GermanParagraph
-                      key={i}
-                      text={pair.de}
-                      paragraphIndex={i}
-                      savedKeys={savedKeys}
-                      exitingKeys={exiting}
-                      innerRef={entry.register(i)}
-                    />
-                  ) : (
-                    <p
-                      key={i}
-                      lang="en"
-                      data-index={i}
-                      ref={entry.register(i)}
-                      className="type-en-read mb-7"
-                    >
-                      {pair.en}
-                    </p>
-                  ),
-                )}
-              </article>
-            </section>
-          );
-        })}
+        <ReaderPane
+          language="de"
+          pairs={doc.pairs}
+          active={side === 'de'}
+          paneRef={setDePane}
+          register={deRegister}
+          savedKeys={savedKeys}
+          exitingKeys={exiting}
+        />
+        <ReaderPane
+          language="en"
+          pairs={doc.pairs}
+          active={side === 'en'}
+          paneRef={setEnPane}
+          register={enRegister}
+          savedKeys={savedKeys}
+          exitingKeys={exiting}
+        />
       </div>
 
-      {/* Accessibility fallback for the swipe, and the only affordance on the
-          screen. Invisible, but a real button. */}
+      {/* Accessibility fallbacks for the two swipes. Invisible, but real
+          buttons: the gestures are the interface, and a reader on a keyboard
+          or a screen reader must not be shut out of them — least of all the
+          one that leaves the document. */}
+      <button
+        type="button"
+        onClick={() => void navigate('/')}
+        aria-label="Back to library"
+        className="absolute left-0 top-0 h-full w-6 cursor-default opacity-0"
+      />
       <button
         type="button"
         onClick={() => flip(side === 'de' ? 'en' : 'de')}

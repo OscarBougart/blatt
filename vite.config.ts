@@ -11,7 +11,19 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      workbox: {
+        // The shell, the fonts and the seed document. Newsreader is the whole
+        // typographic argument of the app: falling back to a system serif
+        // offline would be a different product. The seed is precached because
+        // a cold offline launch has to land on something readable.
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2,json}'],
+        // A standalone PWA opened at any route must not get a 404 from the
+        // network it does not have.
+        navigateFallback: 'index.html',
+        // The seed and the font files are comfortably over the 2 MiB default.
+        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+      },
       manifest: {
         name: 'Blatt',
         short_name: 'Blatt',
@@ -22,7 +34,15 @@ export default defineConfig({
         orientation: 'portrait',
         start_url: '/',
         icons: [
-          { src: 'favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' },
+          { src: 'favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          {
+            src: 'icon-maskable-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
         ],
       },
     }),

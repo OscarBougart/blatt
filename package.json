@@ -7,6 +7,8 @@
     "dev": "vite --host",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "icons": "node scripts/build-icons.mjs",
+    "seed": "vitest run --config vitest.seed.config.ts",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",

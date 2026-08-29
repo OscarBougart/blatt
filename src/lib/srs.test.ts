@@ -1,0 +1,187 @@
+import { describe, expect, it } from 'vitest';
+import type { SavedWord } from '@/db/types';
+import {
+  DAY,
+  MIN_EASE,
+  dueWords,
+  formatDays,
+  nextEase,
+  nextInterval,
+  previewInterval,
+  schedule,
+  shuffle,
+} from './srs';
+
+const NOW = 1_700_000_000_000;
+
+function card(overrides: Partial<SavedWord> = {}): SavedWord {
+  return {
+    id: 'w1',
+    surface: 'Blatt',
+    lemma: 'Blatt',
+    definition: 'leaf, sheet',
+    sentence: 'Ein Blatt fiel vom Baum.',
+    charOffset: 4,
+    docId: 'd1',
+    paragraphIndex: 0,
+    createdAt: NOW,
+    ease: 2.5,
+    interval: 0,
+    repetitions: 0,
+    dueAt: NOW,
+    lapses: 0,
+    ...overrides,
+  };
+}
+
+describe('nextEase', () => {
+  // EF' = EF + (0.1 - (5-q)(0.08 + (5-q)0.02))
+  it('leaves ease untouched at q=4', () => {
+    expect(nextEase(2.5, 4)).toBeCloseTo(2.5, 10);
+  });
+
+  it('raises ease at q=5', () => {
+    expect(nextEase(2.5, 5)).toBeCloseTo(2.6, 10);
+  });
+
+  it('lowers ease by 0.14 at q=3', () => {
+    expect(nextEase(2.5, 3)).toBeCloseTo(2.36, 10);
+  });
+
+  it('lowers ease by 0.8 at q=0', () => {
+    expect(nextEase(2.5, 0)).toBeCloseTo(1.7, 10);
+  });
+
+  it('floors ease at 1.3', () => {
+    expect(nextEase(1.3, 0)).toBe(MIN_EASE);
+    expect(nextEase(1.5, 0)).toBe(MIN_EASE);
+  });
+});
+
+describe('nextInterval', () => {
+  it('follows the 1 / 6 / previous x ease ladder', () => {
+    expect(nextInterval(1, 0, 2.5)).toBe(1);
+    expect(nextInterval(2, 1, 2.5)).toBe(6);
+    expect(nextInterval(3, 6, 2.5)).toBe(15);
+    expect(nextInterval(4, 15, 2.5)).toBe(38);
+  });
+
+  it('never returns less than a day', () => {
+    expect(nextInterval(3, 1, 1.3)).toBe(1);
+  });
+});
+
+describe('schedule', () => {
+  it('walks the textbook sequence for repeated Good answers', () => {
+    // Ease is unchanged at q=4, so this is the pure 1 / 6 / xEF ladder.
+    let word = card();
+
+    word = schedule(word, 'good', NOW);
+    expect(word.repetitions).toBe(1);
+    expect(word.interval).toBe(1);
+    expect(word.ease).toBeCloseTo(2.5, 10);
+    expect(word.dueAt).toBe(NOW + DAY);
+
+    word = schedule(word, 'good', NOW);
+    expect(word.repetitions).toBe(2);
+    expect(word.interval).toBe(6);
+    expect(word.dueAt).toBe(NOW + 6 * DAY);
+
+    word = schedule(word, 'good', NOW);
+    expect(word.repetitions).toBe(3);
+    expect(word.interval).toBe(15); // round(6 x 2.5)
+
+    word = schedule(word, 'good', NOW);
+    expect(word.repetitions).toBe(4);
+    expect(word.interval).toBe(38); // round(15 x 2.5)
+  });
+
+  it('drops ease but keeps the ladder on Hard', () => {
+    const word = schedule(card({ repetitions: 2, interval: 6 }), 'hard', NOW);
+    expect(word.ease).toBeCloseTo(2.36, 10);
+    expect(word.repetitions).toBe(3);
+    expect(word.interval).toBe(14); // round(6 x 2.36)
+    expect(word.lapses).toBe(0);
+  });
+
+  it('raises ease on Easy', () => {
+    const word = schedule(card({ repetitions: 2, interval: 6 }), 'easy', NOW);
+    expect(word.ease).toBeCloseTo(2.6, 10);
+    expect(word.interval).toBe(16); // round(6 x 2.6)
+  });
+
+  it('resets repetitions and counts a lapse on Again', () => {
+    const mature = card({ repetitions: 4, interval: 38, ease: 2.5, lapses: 1 });
+    const word = schedule(mature, 'again', NOW);
+
+    expect(word.repetitions).toBe(0);
+    expect(word.interval).toBe(1);
+    expect(word.lapses).toBe(2);
+    expect(word.ease).toBeCloseTo(1.7, 10);
+    expect(word.dueAt).toBe(NOW + DAY);
+  });
+
+  it('climbs more slowly after a lapse, because the ease was kept', () => {
+    let word = schedule(card({ repetitions: 4, interval: 38 }), 'again', NOW);
+    word = schedule(word, 'good', NOW);
+    expect(word.interval).toBe(1);
+    word = schedule(word, 'good', NOW);
+    expect(word.interval).toBe(6);
+    word = schedule(word, 'good', NOW);
+    expect(word.interval).toBe(10); // round(6 x 1.7), not 15
+  });
+
+  it('is pure', () => {
+    const word = card();
+    const before = { ...word };
+    schedule(word, 'again', NOW);
+    expect(word).toEqual(before);
+  });
+
+  it('preserves the fields it does not own', () => {
+    const word = schedule(card({ note: 'my own gloss' }), 'good', NOW);
+    expect(word.surface).toBe('Blatt');
+    expect(word.sentence).toBe('Ein Blatt fiel vom Baum.');
+    expect(word.note).toBe('my own gloss');
+  });
+});
+
+describe('previewInterval', () => {
+  it('reports what each button would do without scheduling anything', () => {
+    const word = card({ repetitions: 2, interval: 6 });
+    expect(previewInterval(word, 'again')).toBe(1);
+    expect(previewInterval(word, 'hard')).toBe(14);
+    expect(previewInterval(word, 'good')).toBe(15);
+    expect(previewInterval(word, 'easy')).toBe(16);
+  });
+});
+
+describe('dueWords', () => {
+  it('takes everything at or before now', () => {
+    const words = [{ dueAt: NOW - DAY }, { dueAt: NOW }, { dueAt: NOW + 1 }];
+    expect(dueWords(words, NOW)).toHaveLength(2);
+  });
+});
+
+describe('shuffle', () => {
+  it('keeps every item', () => {
+    const items = [1, 2, 3, 4, 5];
+    expect(shuffle(items, () => 0.5).slice().sort()).toEqual(items);
+  });
+
+  it('does not mutate the input', () => {
+    const items = [1, 2, 3];
+    shuffle(items, () => 0);
+    expect(items).toEqual([1, 2, 3]);
+  });
+});
+
+describe('formatDays', () => {
+  it('stays compact enough for a button', () => {
+    expect(formatDays(1)).toBe('1d');
+    expect(formatDays(6)).toBe('6d');
+    expect(formatDays(15)).toBe('2w');
+    expect(formatDays(38)).toBe('1mo');
+    expect(formatDays(400)).toBe('1.1y');
+  });
+});
