@@ -62,6 +62,49 @@ cascade, and inlines every definition. It takes several minutes and caches
 everything it fetches under `scripts/.seed-cache/`. It is polite to Wikimedia
 and should stay that way.
 
+## The capture extension
+
+`extension/` is a Chrome extension that captures a German article from the open
+web, translates it on your own machine, and hands it to Blatt as a properly
+paired document. It is a capture tool, not a reader — reading happens in the
+app, on the phone.
+
+```
+cd extension
+npm install
+npm run build     # → extension/dist
+```
+
+Load `extension/dist` at `chrome://extensions` with developer mode on.
+
+**Chrome desktop only, version 138 or later.** The built-in Translator and
+Language Detector APIs do not exist on mobile Chrome, which is why this is a
+companion to the phone app rather than a replacement for it. Translation runs
+locally against Chrome's own model: no key, no account, nothing leaving the
+machine.
+
+How it works, and why it is built this way:
+
+- **Readability** extracts the article, the same engine as Firefox Reader Mode.
+- **Each paragraph is translated separately** and stored at the same index, so
+  the German and English sides are aligned by construction. Batching would be
+  faster and would let the model merge or split paragraphs, which silently
+  destroys the correspondence that makes the whole approach work. The original
+  plan for this epic was EPUB import with Gale–Church alignment; translating
+  block by block means the alignment problem never arises.
+- **The lemma cascade is imported from `src/lib/lemma/`, not copied**, so a
+  captured document is lemmatised exactly as an imported one. Definitions are
+  prefetched, so it is readable offline before it ever reaches the phone.
+- **Double-click a word** on the page to save it; the words ride along in the
+  same file.
+
+Handoff is deliberately crude: the extension writes the same JSON file Blatt's
+own backup export produces, and you import it through the existing path. The
+extension and the hosted app are different origins and cannot share an
+IndexedDB. The proper fix is an offscreen document hosting the Blatt origin
+that the extension postMessages into — worth building only once the export
+flow has actually become annoying, and never worth a backend.
+
 ## Deploying
 
 The Vercel project is connected to this repository, so a push to `main`

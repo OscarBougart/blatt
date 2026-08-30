@@ -50,9 +50,15 @@ export default defineConfig({
   // The measurement script in scripts/ hits the live network. It is run by
   // hand, not as part of `npm test`.
   test: {
-    include: ['src/**/*.test.ts'],
+    // The capture extension shares the app's lemma engine and its export
+    // format, so its tests belong to the same run: a change here that breaks
+    // the handoff should fail `npm test`, not be discovered in Chrome.
+    include: ['src/**/*.test.ts', 'extension/src/**/*.test.ts'],
   },
   resolve: {
-    alias: { '@': path.resolve(import.meta.dirname, 'src') },
+    alias: {
+      '@': path.resolve(import.meta.dirname, 'src'),
+      '@app': path.resolve(import.meta.dirname, 'src'),
+    },
   },
 });

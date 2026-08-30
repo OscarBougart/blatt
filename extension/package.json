@@ -1,0 +1,21 @@
+{
+  "name": "blatt-capture",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Capture a German article, translate it locally, hand it to Blatt.",
+  "scripts": {
+    "build": "tsc -b && vite build && vite build --config vite.content.config.ts",
+    "dev": "vite build --watch"
+  },
+  "dependencies": {
+    "@mozilla/readability": "^0.6.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/chrome": "^0.0.287",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2"
+  }
+}

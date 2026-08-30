@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Blatt Capture",
+  "version": "0.1.0",
+  "minimum_chrome_version": "138",
+  "description": "Capture a German article, translate it on your own machine, and read it in Blatt on your phone. Chrome desktop only.",
+  "action": {
+    "default_popup": "index.html",
+    "default_title": "Capture for Blatt"
+  },
+  "permissions": ["activeTab", "scripting", "storage", "downloads"],
+  "host_permissions": ["https://en.wiktionary.org/*"],
+  "icons": {
+    "192": "icon-192.png",
+    "512": "icon-512.png"
+  }
+}

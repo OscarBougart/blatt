@@ -190,3 +190,45 @@ Blatt is a sentence-mining tool where the mining is free. The friction of
 building cards by hand is why most people abandon the method, and reroll and
 i+1 scoring are only possible because the reader and the review system share
 one corpus.
+
+---
+
+## EPIC 8 (revised) — Chrome capture extension
+
+Replaces the original Epic 8 (EPUB/PDF import with Gale–Church alignment),
+which is cancelled: translating block by block produces correct paragraph pairs
+by construction, so the alignment problem never arises.
+
+Built as `extension/`, a separate package in the same repository, importing the
+app's lemma engine rather than copying it.
+
+- **8.1** Translation through Chrome's built-in Translator API, locally, with
+  no key and no backend. Chrome 138+, desktop only — the API does not exist on
+  mobile.
+- **8.2** Article extraction with Mozilla's Readability. Inline markup is
+  discarded; blocks under ~40 characters and repeated blocks are dropped as
+  furniture. Source language is detected before anything is translated.
+- **8.3** Each paragraph translated individually and stored at the same index.
+  Never batched: the model may merge or split, and the index correspondence is
+  the product.
+- **8.4** The shared lemma cascade builds the `lemmaMap`; definitions are
+  prefetched four at a time, so the document is readable offline on arrival.
+- **8.5** Handoff is a JSON file in exactly the Epic 7 export format, imported
+  through the existing path. Different origins cannot share an IndexedDB; the
+  proper fix is an offscreen document, not a backend, and not yet.
+- **8.6** Double-click a word to save it, marked with the same graphite rule.
+  Saved words ride along in the same file.
+- **8.7** One icon, one popup: detected language, paragraph count, a button,
+  progress. No options page.
+- **8.8** Failure states named plainly: no Translator API, model downloading,
+  no article found, page not German.
+
+### What the API actually requires
+
+`Translator.create()` throws `NotAllowedError` when the language pack still
+has to be downloaded and there is no user gesture behind the call — and the
+gesture is spent by the first `await`. The popup therefore requests the
+translator as the very first statement of the click handler, before awaiting
+anything. Asking for it later works on a machine that already has the pack and
+fails on every machine that does not, which is the worst way for a bug to
+behave.
