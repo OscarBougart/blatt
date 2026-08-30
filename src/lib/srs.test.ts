@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest';
 import type { SavedWord } from '@/db/types';
 import {
   DAY,
+  GRADE_NUMBER,
+  LEECH_LAPSES,
   MIN_EASE,
   dueWords,
   formatDays,
+  isLeech,
   nextEase,
   nextInterval,
   previewInterval,
@@ -183,5 +186,44 @@ describe('formatDays', () => {
     expect(formatDays(15)).toBe('2w');
     expect(formatDays(38)).toBe('1mo');
     expect(formatDays(400)).toBe('1.1y');
+  });
+});
+
+describe('leeches', () => {
+  it('recognises a word failed six times', () => {
+    expect(isLeech({ lapses: LEECH_LAPSES - 1 })).toBe(false);
+    expect(isLeech({ lapses: LEECH_LAPSES })).toBe(true);
+  });
+
+  it('suspends a card as it crosses the threshold', () => {
+    const next = schedule(card({ lapses: LEECH_LAPSES - 1, repetitions: 2 }), 'again', NOW);
+    expect(next.lapses).toBe(LEECH_LAPSES);
+    expect(next.suspended).toBe(true);
+    expect(next.leechFlaggedAt).toBe(NOW);
+  });
+
+  it('leaves a card below the threshold alone', () => {
+    const next = schedule(card({ lapses: 2 }), 'again', NOW);
+    expect(next.suspended).toBeUndefined();
+    expect(next.leechFlaggedAt).toBeUndefined();
+  });
+
+  it('does not re-flag a word already flagged', () => {
+    // Un-suspending it by hand must not be undone by the next failure.
+    const flagged = card({ lapses: 8, leechFlaggedAt: NOW - 1000, suspended: false });
+    const next = schedule(flagged, 'again', NOW);
+    expect(next.leechFlaggedAt).toBe(NOW - 1000);
+    expect(next.suspended).toBe(false);
+  });
+
+  it('never suspends on a pass', () => {
+    const next = schedule(card({ lapses: LEECH_LAPSES + 2 }), 'good', NOW);
+    expect(next.suspended).toBeUndefined();
+  });
+});
+
+describe('GRADE_NUMBER', () => {
+  it('maps the four buttons onto the numeric scale', () => {
+    expect(GRADE_NUMBER).toEqual({ again: 1, hard: 2, good: 3, easy: 4 });
   });
 });

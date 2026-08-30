@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
-import type { DictEntry, Doc, FormEntry, SavedWord, Session } from './types';
+import type { DictEntry, Doc, FormEntry, ReviewLog, SavedWord, Session, Sighting } from './types';
 
 export class BlattDB extends Dexie {
   docs!: EntityTable<Doc, 'id'>;
@@ -7,6 +7,8 @@ export class BlattDB extends Dexie {
   dict!: EntityTable<DictEntry, 'lemma'>;
   sessions!: EntityTable<Session, 'id'>;
   forms!: EntityTable<FormEntry, 'surface'>;
+  reviews!: EntityTable<ReviewLog, 'id'>;
+  sightings!: EntityTable<Sighting, 'lemma'>;
 
   constructor() {
     super('blatt');
@@ -45,6 +47,53 @@ export class BlattDB extends Dexie {
       lemmaMaps: null,
       positions: null,
     });
+
+    /**
+     * Epic 9. The review log, and the sightings that feed the familiarity
+     * model.
+     *
+     * Additive throughout. Existing words keep their SM-2 state untouched —
+     * `modify` sets the new fields and leaves everything else alone — because
+     * the whole point of a migration rather than a reset is that a year of
+     * scheduling survives it.
+     */
+    this.version(5)
+      .stores({
+        reviews: 'id, wordId, reviewedAt',
+        sightings: 'lemma, lastSeenAt',
+      })
+      .upgrade(async (tx) => {
+        // Every word that already exists is already a card: it has been
+        // scheduled and reviewed under the old rules, and putting it back in
+        // the queue would be a demotion the reader never asked for.
+        await tx
+          .table('words')
+          .toCollection()
+          .modify((word) => {
+            word.introducedAt = word.introducedAt ?? word.createdAt;
+          });
+
+        // Seed sightings from what has already been read. Counting each lemma
+        // once per document is rough — it credits a word in a document that
+        // was opened and abandoned — but starting every reader at zero would
+        // make the familiarity model useless for months.
+        const docs = await tx.table('docs').toArray();
+        const counts = new Map<string, number>();
+
+        for (const doc of docs) {
+          const lemmas = new Set<string>();
+          for (const candidates of Object.values(doc.lemmaMap ?? {})) {
+            const best = (candidates as { lemma: string }[])[0]?.lemma;
+            if (best) lemmas.add(best);
+          }
+          for (const lemma of lemmas) counts.set(lemma, (counts.get(lemma) ?? 0) + 1);
+        }
+
+        const now = Date.now();
+        await tx.table('sightings').bulkAdd(
+          [...counts].map(([lemma, count]) => ({ lemma, count, lastSeenAt: now })),
+        );
+      });
   }
 }
 

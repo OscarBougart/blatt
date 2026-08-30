@@ -1,13 +1,15 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
+import { usePace } from '@/context/PaceContext';
 import DocRow from '@/components/DocRow';
 import Page from '@/components/Page';
 import { db } from '@/db/db';
 import { lastExportAt, shouldPromptBackup } from '@/lib/backup';
-import { dueWords } from '@/lib/srs';
+import { composeSession } from '@/lib/queue';
 
 export default function HomePage() {
+  const { newPerDay } = usePace();
   const docs = useLiveQuery(() => db.docs.orderBy('createdAt').reverse().toArray(), []);
   const words = useLiveQuery(() => db.words.toArray(), [], []);
 
@@ -32,9 +34,23 @@ export default function HomePage() {
    * would fix that and make the count depend on when React re-rendered
    * instead; this way it depends on the words.
    */
+  /**
+   * What a session would actually contain, not how many words exist.
+   *
+   * Counting every word whose `dueAt` has passed would include the whole
+   * queue, so a reader who saved four hundred words in a fortnight would be
+   * met by "400 due" — the precise feeling the daily limit exists to prevent.
+   * The badge promises what pressing it delivers.
+   */
   const due = useLiveQuery(
-    async () => dueWords(await db.words.toArray(), Date.now()).length,
-    [],
+    async () => {
+      const { due: cards, fresh } = composeSession(await db.words.toArray(), {
+        newPerDay,
+        now: Date.now(),
+      });
+      return cards.length + fresh.length;
+    },
+    [newPerDay],
     0,
   );
 

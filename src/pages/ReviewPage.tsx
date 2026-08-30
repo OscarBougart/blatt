@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import Page from '@/components/Page';
 import ReviewCard from '@/components/ReviewCard';
 import { db } from '@/db/db';
 import type { SavedWord } from '@/db/types';
-import { dueWords, schedule, shuffle, type Grade } from '@/lib/srs';
-
-/** One sitting. Long enough to be worth doing, short enough to finish. */
-export const SESSION_CAP = 20;
+import { usePace } from '@/context/PaceContext';
+import { composeSession } from '@/lib/queue';
+import { gradeCard, introduce } from '@/lib/review';
+import { shuffle, type Grade } from '@/lib/srs';
 
 const muted = 'text-graphite dark:text-lamp-gph';
 
@@ -24,9 +24,12 @@ function formatDue(at: number): string {
  * mid-session and the count would move while you were reading it.
  */
 export default function ReviewPage() {
+  const { newPerDay } = usePace();
   const [queue, setQueue] = useState<SavedWord[] | null>(null);
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
+  /** When the current card went on screen, for the review log. */
+  const shownAt = useRef(Date.now());
 
   const docs = useLiveQuery(() => db.docs.toArray(), [], []);
   const titles = useMemo(
@@ -39,11 +42,26 @@ export default function ReviewPage() {
     void (async () => {
       const all = await db.words.toArray();
       if (cancelled) return;
-      setQueue(shuffle(dueWords(all, Date.now())).slice(0, SESSION_CAP));
+
+      const { due, fresh } = composeSession(all, { newPerDay, now: Date.now() });
+
+      // Stamped now, not when they are first shown. A session interrupted
+      // halfway has still spent those words out of today's allowance — the
+      // limit exists to pace what enters the deck, and re-offering them later
+      // the same day would quietly defeat it.
+      await introduce(fresh);
+
+      if (cancelled) return;
+      // Shuffled together so a session is not review-then-new in two blocks.
+      setQueue(shuffle([...due, ...fresh]));
+      shownAt.current = Date.now();
     })();
     return () => {
       cancelled = true;
     };
+    // Deliberately mount-only: the deck is drawn once. Changing the daily
+    // limit mid-session must not redeal the cards under the reader.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const card = queue?.[index];
@@ -51,16 +69,10 @@ export default function ReviewPage() {
   const onGrade = useCallback(
     (grade: Grade) => {
       if (!card) return;
-      const next = schedule(card, grade, Date.now());
-      void db.words.update(card.id, {
-        ease: next.ease,
-        interval: next.interval,
-        repetitions: next.repetitions,
-        lapses: next.lapses,
-        dueAt: next.dueAt,
-      });
+      void gradeCard(card, grade, Date.now() - shownAt.current);
       setRevealed(false);
       setIndex((i) => i + 1);
+      shownAt.current = Date.now();
     },
     [card],
   );

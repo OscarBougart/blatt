@@ -37,6 +37,28 @@ export const GRADE_Q: Record<Grade, number> = {
 /** A grade below 3 is a failure and restarts the ladder. */
 const PASS = 3;
 
+/** The numeric grade written to the review log. 1 Again … 4 Easy. */
+export const GRADE_NUMBER: Record<Grade, 1 | 2 | 3 | 4> = {
+  again: 1,
+  hard: 2,
+  good: 3,
+  easy: 4,
+};
+
+/**
+ * Lapses before a word is called a leech.
+ *
+ * The received wisdom on a card failed this often is that the card is the
+ * problem, not the memory — the sentence is too long, or the context gives
+ * nothing away. Grinding it is how people come to dread the review screen.
+ */
+export const LEECH_LAPSES = 6;
+
+/** Has this word failed often enough to be the card's fault rather than yours? */
+export function isLeech(word: Pick<SavedWord, 'lapses'>): boolean {
+  return word.lapses >= LEECH_LAPSES;
+}
+
 /**
  * EF' = EF + (0.1 - (5-q) * (0.08 + (5-q) * 0.02)), floored at 1.3.
  *
@@ -73,14 +95,29 @@ export function schedule(word: SavedWord, grade: Grade, now: number): SavedWord 
   const repetitions = failed ? 0 : word.repetitions + 1;
   const interval = failed ? 1 : nextInterval(repetitions, word.interval, ease);
 
-  return {
+  const lapses = failed ? word.lapses + 1 : word.lapses;
+  const next: SavedWord = {
     ...word,
     ease,
     repetitions,
     interval,
-    lapses: failed ? word.lapses + 1 : word.lapses,
+    lapses,
     dueAt: now + interval * DAY,
   };
+
+  // A leech is suspended where it falls rather than being forced round again.
+  // It is not lost: it surfaces in the word list under "needs attention",
+  // where the sentence behind it can be dealt with.
+  //
+  // Only ever on a failure. A card carrying old lapses that the reader has
+  // just got right is a card being remembered, and suspending it for its
+  // history would be a punishment for succeeding.
+  if (failed && !word.leechFlaggedAt && isLeech(next)) {
+    next.suspended = true;
+    next.leechFlaggedAt = now;
+  }
+
+  return next;
 }
 
 /** What grading a card now would cost you, for the button labels. */

@@ -11,6 +11,7 @@ import { useSwipe } from '@/hooks/useSwipe';
 import { useFlipHint, HINT_SHIFT } from '@/hooks/useFlipHint';
 import { useWordSaving } from '@/hooks/useWordSaving';
 import { lemmatizeDocument } from '@/lib/lemma/lemmatizeDocument';
+import { lemmasOf, recordSightings } from '@/lib/sightings';
 
 type Side = 'de' | 'en';
 
@@ -71,8 +72,25 @@ export default function ReaderPage() {
 
   const current = side === 'de' ? deCurrent : enCurrent;
 
+  /**
+   * A German paragraph that met the dwell threshold, counted two ways.
+   *
+   * The flip rate needs it, and so does the familiarity model: a word read
+   * past three times without ever being tapped is a word the reader knows.
+   * One batched write per paragraph, fired and forgotten — this happens
+   * constantly while reading and must never make the page wait.
+   */
+  const onGermanDwell = useCallback(
+    (index: number) => {
+      markViewed(index);
+      const paragraph = doc?.pairs[index]?.de;
+      if (paragraph) void recordSightings(lemmasOf(paragraph, doc.lemmaMap), Date.now());
+    },
+    [markViewed, doc],
+  );
+
   // German dwell feeds the denominator, English dwell the numerator.
-  useDwell(deCurrent, tracking && side === 'de', markViewed);
+  useDwell(deCurrent, tracking && side === 'de', onGermanDwell);
   useDwell(enCurrent, tracking && side === 'en', markFlipped);
 
   useEffect(() => {

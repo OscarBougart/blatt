@@ -42,6 +42,13 @@ describe('seedRows', () => {
     expect(words[0].id).not.toBe(doc.id);
   });
 
+  it('seeds cards, not queue entries', () => {
+    // A word with no introducedAt waits behind the daily limit, which would
+    // leave the demo's review screen empty on a first visit.
+    const { words } = seedRows(seed, NOW, ids());
+    expect(words[0].introducedAt).toBe(NOW);
+  });
+
   it('makes every seeded word due now, with fresh SM-2 state', () => {
     const { words } = seedRows(seed, NOW, ids());
     expect(words[0].dueAt).toBe(NOW);

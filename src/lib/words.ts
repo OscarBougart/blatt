@@ -26,8 +26,8 @@ export function lemmaConfidence(
 }
 
 /**
- * Words worth a second look: no definition, a lookup that failed, or a lemma
- * the cascade was only guessing at.
+ * Words worth a second look: a leech, no definition, a lookup that failed, or
+ * a lemma the cascade was only guessing at.
  *
  * Deliberately narrow. This is meant to be a two-minute job done occasionally,
  * and a filter that flags half the list is a chore nobody does.
@@ -36,6 +36,10 @@ export function needsAttention(
   word: SavedWord,
   candidates: LemmaCandidate[] | undefined,
 ): boolean {
+  // A leech belongs here above everything else. Six failures says the card is
+  // wrong — the sentence too long, or the context giving nothing away — and
+  // the fix is to rebuild it, which is work that happens on this screen.
+  if (word.leechFlaggedAt !== undefined) return true;
   if (word.lookupFailed) return true;
   if (!word.definition.trim() && !word.note?.trim()) return true;
 

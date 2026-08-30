@@ -6,8 +6,11 @@ import {
   formatDuration,
   formatRate,
   interpret,
+  formatSeconds,
+  medianDuration,
   plotPoints,
   readableSessions,
+  reviewsPerDay,
 } from './stats';
 
 const START = 1_700_000_000_000;
@@ -163,5 +166,79 @@ describe('interpret', () => {
   it('never congratulates', () => {
     const sessions = Array.from({ length: 12 }, () => session());
     expect(interpret(sessions)).not.toMatch(/well done|great|keep|nice|congrat|streak/i);
+  });
+});
+
+describe('reviewsPerDay', () => {
+  const day = 24 * 60 * 60 * 1000;
+
+  it('returns one entry per day, including the empty ones', () => {
+    const strip = reviewsPerDay([], START, 7);
+    expect(strip).toHaveLength(7);
+    expect(strip.every((d) => d.count === 0)).toBe(true);
+  });
+
+  it('ends on today', () => {
+    const strip = reviewsPerDay([{ reviewedAt: START }], START, 7);
+    expect(strip[strip.length - 1].count).toBe(1);
+  });
+
+  it('buckets several reviews into the day they happened', () => {
+    const logs = [
+      { reviewedAt: START },
+      { reviewedAt: START - 60_000 },
+      { reviewedAt: START - 3 * day },
+    ];
+    const strip = reviewsPerDay(logs, START, 7);
+    expect(strip[strip.length - 1].count).toBe(2);
+    expect(strip[strip.length - 4].count).toBe(1);
+  });
+
+  it('drops reviews older than the window', () => {
+    const strip = reviewsPerDay([{ reviewedAt: START - 90 * day }], START, 30);
+    expect(strip.reduce((sum, d) => sum + d.count, 0)).toBe(0);
+  });
+
+  it('runs oldest first', () => {
+    const strip = reviewsPerDay([], START, 5);
+    expect(strip[0].day).toBeLessThan(strip[4].day);
+  });
+});
+
+describe('medianDuration', () => {
+  it('is null with nothing to report', () => {
+    expect(medianDuration([])).toBeNull();
+  });
+
+  it('takes the middle of an odd count', () => {
+    expect(medianDuration([{ durationMs: 1000 }, { durationMs: 9000 }, { durationMs: 3000 }]))
+      .toBe(3000);
+  });
+
+  it('averages the middle two of an even count', () => {
+    expect(medianDuration([{ durationMs: 1000 }, { durationMs: 3000 }])).toBe(2000);
+  });
+
+  it('is not dragged about by a card left on screen', () => {
+    // The reason this is a median: one abandoned card would own the mean.
+    const logs = [
+      { durationMs: 2000 },
+      { durationMs: 3000 },
+      { durationMs: 4000 },
+      { durationMs: 20 * 60 * 1000 },
+    ];
+    expect(medianDuration(logs)).toBe(3500);
+  });
+
+  it('ignores impossible durations', () => {
+    expect(medianDuration([{ durationMs: 0 }, { durationMs: -5 }, { durationMs: 2000 }]))
+      .toBe(2000);
+  });
+});
+
+describe('formatSeconds', () => {
+  it('reads in seconds, to one decimal', () => {
+    expect(formatSeconds(4200)).toBe('4.2s');
+    expect(formatSeconds(900)).toBe('0.9s');
   });
 });

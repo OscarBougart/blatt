@@ -43,6 +43,54 @@ export interface SavedWord {
   repetitions: number;
   dueAt: number;
   lapses: number;
+
+  /**
+   * When this word first entered review. A saved word is not a card until
+   * this is set — until then it waits in the queue, so that an evening of
+   * enthusiastic tapping cannot flood next week.
+   */
+  introducedAt?: number;
+  /** Suspended cards are never scheduled. Set when a word becomes a leech. */
+  suspended?: boolean;
+  /** When this word crossed the lapse threshold. */
+  leechFlaggedAt?: number;
+}
+
+/**
+ * One row per grade press, without exception.
+ *
+ * Two things need this and neither works retroactively. FSRS — the algorithm
+ * that replaced SM-2 as Anki's default — trains on review history, so if
+ * Blatt ever changes scheduler this log is the difference between keeping
+ * years of data and starting again from nothing. Leech detection needs it to
+ * tell a card that is hard from a card that is broken.
+ */
+export interface ReviewLog {
+  id: string;
+  wordId: string;
+  reviewedAt: number;
+  /** 1 Again, 2 Hard, 3 Good, 4 Easy. */
+  grade: 1 | 2 | 3 | 4;
+  /** The interval the card was carrying when it was shown, in days. */
+  intervalBefore: number;
+  easeBefore: number;
+  /** Days actually elapsed since the last review, which is rarely the plan. */
+  elapsedDays: number;
+  /** Card shown to grade pressed. */
+  durationMs: number;
+}
+
+/**
+ * How often a lemma has been read past without being tapped.
+ *
+ * Counted once per paragraph that met the dwell threshold, not once per
+ * occurrence: reading a paragraph containing "Frosch" four times is one
+ * sighting, because it is one act of reading.
+ */
+export interface Sighting {
+  lemma: string;
+  count: number;
+  lastSeenAt: number;
 }
 
 /** Permanent lookup cache. Never expires; the dictionary API is a fallback. */

@@ -1,6 +1,7 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { TypeSizeProvider } from './context/TypeSizeContext';
+import { PaceProvider } from './context/PaceContext';
 import { useDefinitionRetry } from './hooks/useDefinitionRetry';
 import { usePersistentStorage } from './hooks/usePersistentStorage';
 import { useSeed } from './hooks/useSeed';
@@ -22,22 +23,24 @@ export default function App() {
   return (
     <ThemeProvider>
       <TypeSizeProvider>
-        <BrowserRouter>
-          <Routes>
-            {/* The reader sits outside the shell: no chrome while reading. */}
-            <Route path="/read/:docId" element={<ReaderPage />} />
+        <PaceProvider>
+          <BrowserRouter>
+            <Routes>
+              {/* The reader sits outside the shell: no chrome while reading. */}
+              <Route path="/read/:docId" element={<ReaderPage />} />
 
-            <Route element={<Shell />}>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/words" element={<WordsPage />} />
-              <Route path="/review" element={<ReviewPage />} />
-              <Route path="/import" element={<ImportPage />} />
-              <Route path="/stats" element={<StatsPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="*" element={<NotFoundPage />} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
+              <Route element={<Shell />}>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/words" element={<WordsPage />} />
+                <Route path="/review" element={<ReviewPage />} />
+                <Route path="/import" element={<ImportPage />} />
+                <Route path="/stats" element={<StatsPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="*" element={<NotFoundPage />} />
+              </Route>
+            </Routes>
+          </BrowserRouter>
+        </PaceProvider>
       </TypeSizeProvider>
     </ThemeProvider>
   );

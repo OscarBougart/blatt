@@ -79,6 +79,11 @@ export function seedRows(seed: SeedFile, now: number, id: () => string) {
     docId,
     paragraphIndex: word.paragraphIndex,
     createdAt: now,
+    // Introduced, not queued. The demo's six words are meant to be a deck
+    // waiting to be reviewed — putting them behind the daily new-word limit
+    // would leave a first-time visitor with an empty review screen, which is
+    // the one thing seeding them was for.
+    introducedAt: now,
     ease: 2.5,
     interval: 0,
     repetitions: 0,
