@@ -11,25 +11,31 @@ export const DAY = 24 * 60 * 60 * 1000;
 /** The floor SM-2 puts under the ease factor. */
 export const MIN_EASE = 1.3;
 
-export type Grade = 'again' | 'hard' | 'good' | 'easy';
+export type Grade = 'hard' | 'medium' | 'good' | 'easy';
 
 /** The four buttons, in the order they are shown. */
-export const GRADES: Grade[] = ['again', 'hard', 'good', 'easy'];
+export const GRADES: Grade[] = ['hard', 'medium', 'good', 'easy'];
 
 export const GRADE_LABEL: Record<Grade, string> = {
-  again: 'Again',
   hard: 'Hard',
+  medium: 'Medium',
   good: 'Good',
   easy: 'Easy',
 };
 
 /**
- * SM-2 grades responses 0–5. Four buttons is the usable subset: a blackout, a
- * recall that hurt, a clean recall, and an effortless one.
+ * SM-2 grades responses 0–5; these four are the usable subset.
+ *
+ * Hard is the failure. The algorithm needs one — a grade that resets the
+ * repetition count and books the card back for tomorrow — and with the
+ * buttons named Hard, Medium, Good and Easy this is the only one it can be.
+ * It sits at 1 rather than 0 because a word you laboured over and lost is not
+ * the same as a word you have never seen; 0 is the blackout SM-2 reserves for
+ * a card that told you nothing at all, and it costs nearly twice the ease.
  */
 export const GRADE_Q: Record<Grade, number> = {
-  again: 0,
-  hard: 3,
+  hard: 1,
+  medium: 3,
   good: 4,
   easy: 5,
 };
@@ -37,10 +43,15 @@ export const GRADE_Q: Record<Grade, number> = {
 /** A grade below 3 is a failure and restarts the ladder. */
 const PASS = 3;
 
-/** The numeric grade written to the review log. 1 Again … 4 Easy. */
+/**
+ * The numeric grade written to the review log, 1 hardest to 4 easiest.
+ *
+ * Positional, so it survives the buttons being renamed: 1 has always meant
+ * "the reader failed this", whatever the label above it said.
+ */
 export const GRADE_NUMBER: Record<Grade, 1 | 2 | 3 | 4> = {
-  again: 1,
-  hard: 2,
+  hard: 1,
+  medium: 2,
   good: 3,
   easy: 4,
 };
@@ -118,11 +129,6 @@ export function schedule(word: SavedWord, grade: Grade, now: number): SavedWord 
   }
 
   return next;
-}
-
-/** What grading a card now would cost you, for the button labels. */
-export function previewInterval(word: SavedWord, grade: Grade): number {
-  return schedule(word, grade, 0).interval;
 }
 
 /** Cards whose time has come. */

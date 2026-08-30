@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { SavedWord } from '@/db/types';
 import {
   DEFAULT_NEW_PER_DAY,
+  aheadSession,
   MAX_NEW_PER_DAY,
   MIN_NEW_PER_DAY,
   clampNewPerDay,
@@ -170,5 +171,28 @@ describe('composeSession', () => {
     const words = [card(1, { dueAt: NOW + DAY })];
     const { due } = composeSession(words, { newPerDay: 8, now: NOW, random: noShuffle });
     expect(due).toHaveLength(0);
+  });
+});
+
+describe('aheadSession', () => {
+  it('offers the cards closest to falling due', () => {
+    const words = [
+      card(1, { id: 'far', dueAt: NOW + 10 * DAY }),
+      card(2, { id: 'soon', dueAt: NOW + DAY }),
+      card(3, { id: 'sooner', dueAt: NOW + 1000 }),
+    ];
+    expect(aheadSession(words).map((w) => w.id)).toEqual(['sooner', 'soon', 'far']);
+  });
+
+  it('holds the session cap', () => {
+    const words = Array.from({ length: 40 }, (_, i) => card(i, { dueAt: NOW + i * DAY }));
+    expect(aheadSession(words)).toHaveLength(20);
+  });
+
+  it('leaves the queue and the suspended out of it', () => {
+    // Reviewing ahead means reviewing cards early, not conjuring new ones past
+    // the daily limit.
+    const words = [card(1), waiting(2), card(3, { suspended: true })];
+    expect(aheadSession(words).map((w) => w.id)).toEqual(['c1']);
   });
 });

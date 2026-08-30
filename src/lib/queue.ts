@@ -49,6 +49,17 @@ export function introducedToday(words: SavedWord[], now: number): number {
   return words.filter((w) => w.introducedAt !== undefined && w.introducedAt >= midnight).length;
 }
 
+/**
+ * How a session asks its questions.
+ *
+ * `sentence` uses the word's own card mode — the sentence it was read in,
+ * with the word marked, or blanked if it has been promoted to cloze.
+ * `word` drops the context entirely: the English definition on the front and
+ * the German word behind it, which is the drill you want when you already
+ * know the sentence by heart and are testing the word itself.
+ */
+export type SessionStyle = 'sentence' | 'word';
+
 export interface Session {
   /** Cards already in review and due now. */
   due: SavedWord[];
@@ -83,4 +94,22 @@ export function composeSession(
     .slice(0, Math.min(allowance, room));
 
   return { due, fresh };
+}
+
+/**
+ * A session when nothing is due.
+ *
+ * Reviewing ahead is not free — grading a card early shortens the interval it
+ * earns, because SM-2 measures from now rather than from when the card was
+ * meant to come round. So it is never automatic and never the default: it is
+ * offered on the empty screen, for the evening when you have finished and want
+ * to keep going anyway, and the cost is yours to accept.
+ *
+ * Soonest-due first, since those are the cards closest to being forgotten.
+ */
+export function aheadSession(words: SavedWord[], cap = SESSION_CAP): SavedWord[] {
+  return words
+    .filter(isCard)
+    .sort((a, b) => a.dueAt - b.dueAt)
+    .slice(0, cap);
 }

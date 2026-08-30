@@ -10,7 +10,6 @@ import {
   isLeech,
   nextEase,
   nextInterval,
-  previewInterval,
   schedule,
   shuffle,
 } from './srs';
@@ -53,6 +52,10 @@ describe('nextEase', () => {
 
   it('lowers ease by 0.8 at q=0', () => {
     expect(nextEase(2.5, 0)).toBeCloseTo(1.7, 10);
+  });
+
+  it('lowers ease by 0.54 at q=1, the grade Hard actually uses', () => {
+    expect(nextEase(2.5, 1)).toBeCloseTo(1.96, 10);
   });
 
   it('floors ease at 1.3', () => {
@@ -99,8 +102,8 @@ describe('schedule', () => {
     expect(word.interval).toBe(38); // round(15 x 2.5)
   });
 
-  it('drops ease but keeps the ladder on Hard', () => {
-    const word = schedule(card({ repetitions: 2, interval: 6 }), 'hard', NOW);
+  it('drops ease but keeps the ladder on Medium', () => {
+    const word = schedule(card({ repetitions: 2, interval: 6 }), 'medium', NOW);
     expect(word.ease).toBeCloseTo(2.36, 10);
     expect(word.repetitions).toBe(3);
     expect(word.interval).toBe(14); // round(6 x 2.36)
@@ -115,29 +118,29 @@ describe('schedule', () => {
 
   it('resets repetitions and counts a lapse on Again', () => {
     const mature = card({ repetitions: 4, interval: 38, ease: 2.5, lapses: 1 });
-    const word = schedule(mature, 'again', NOW);
+    const word = schedule(mature, 'hard', NOW);
 
     expect(word.repetitions).toBe(0);
     expect(word.interval).toBe(1);
     expect(word.lapses).toBe(2);
-    expect(word.ease).toBeCloseTo(1.7, 10);
+    expect(word.ease).toBeCloseTo(1.96, 10);
     expect(word.dueAt).toBe(NOW + DAY);
   });
 
   it('climbs more slowly after a lapse, because the ease was kept', () => {
-    let word = schedule(card({ repetitions: 4, interval: 38 }), 'again', NOW);
+    let word = schedule(card({ repetitions: 4, interval: 38 }), 'hard', NOW);
     word = schedule(word, 'good', NOW);
     expect(word.interval).toBe(1);
     word = schedule(word, 'good', NOW);
     expect(word.interval).toBe(6);
     word = schedule(word, 'good', NOW);
-    expect(word.interval).toBe(10); // round(6 x 1.7), not 15
+    expect(word.interval).toBe(12); // round(6 x 1.96), not 15
   });
 
   it('is pure', () => {
     const word = card();
     const before = { ...word };
-    schedule(word, 'again', NOW);
+    schedule(word, 'hard', NOW);
     expect(word).toEqual(before);
   });
 
@@ -146,16 +149,6 @@ describe('schedule', () => {
     expect(word.surface).toBe('Blatt');
     expect(word.sentence).toBe('Ein Blatt fiel vom Baum.');
     expect(word.note).toBe('my own gloss');
-  });
-});
-
-describe('previewInterval', () => {
-  it('reports what each button would do without scheduling anything', () => {
-    const word = card({ repetitions: 2, interval: 6 });
-    expect(previewInterval(word, 'again')).toBe(1);
-    expect(previewInterval(word, 'hard')).toBe(14);
-    expect(previewInterval(word, 'good')).toBe(15);
-    expect(previewInterval(word, 'easy')).toBe(16);
   });
 });
 
@@ -196,14 +189,14 @@ describe('leeches', () => {
   });
 
   it('suspends a card as it crosses the threshold', () => {
-    const next = schedule(card({ lapses: LEECH_LAPSES - 1, repetitions: 2 }), 'again', NOW);
+    const next = schedule(card({ lapses: LEECH_LAPSES - 1, repetitions: 2 }), 'hard', NOW);
     expect(next.lapses).toBe(LEECH_LAPSES);
     expect(next.suspended).toBe(true);
     expect(next.leechFlaggedAt).toBe(NOW);
   });
 
   it('leaves a card below the threshold alone', () => {
-    const next = schedule(card({ lapses: 2 }), 'again', NOW);
+    const next = schedule(card({ lapses: 2 }), 'hard', NOW);
     expect(next.suspended).toBeUndefined();
     expect(next.leechFlaggedAt).toBeUndefined();
   });
@@ -211,7 +204,7 @@ describe('leeches', () => {
   it('does not re-flag a word already flagged', () => {
     // Un-suspending it by hand must not be undone by the next failure.
     const flagged = card({ lapses: 8, leechFlaggedAt: NOW - 1000, suspended: false });
-    const next = schedule(flagged, 'again', NOW);
+    const next = schedule(flagged, 'hard', NOW);
     expect(next.leechFlaggedAt).toBe(NOW - 1000);
     expect(next.suspended).toBe(false);
   });
@@ -223,7 +216,7 @@ describe('leeches', () => {
 });
 
 describe('GRADE_NUMBER', () => {
-  it('maps the four buttons onto the numeric scale', () => {
-    expect(GRADE_NUMBER).toEqual({ again: 1, hard: 2, good: 3, easy: 4 });
+  it('maps the four buttons onto the numeric scale, hardest first', () => {
+    expect(GRADE_NUMBER).toEqual({ hard: 1, medium: 2, good: 3, easy: 4 });
   });
 });

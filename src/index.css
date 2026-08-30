@@ -20,8 +20,16 @@
   --color-lamp-ink: #ede9e1;
   --color-lamp-gph: #8b857b;
 
-  /* The only colour in the product. Flip rate, and nothing else. */
+  /* The only colour in the reading product. Flip rate, and nothing else. */
   --color-signal: #b0472c;
+
+  /* The answer on a flashcard, and only there.
+     Review is not reading: the whole point of a card is to hand you one word
+     at a moment when you want it found instantly, so the answer is allowed
+     to be the one thing on screen that carries colour. Kept out of the
+     reader entirely. */
+  --color-reveal: #2f6f9f;
+  --color-lamp-reveal: #7fb4dc;
 }
 
 html,
@@ -126,4 +134,24 @@ body {
 
 .card-in {
   animation: card-in 100ms linear;
+}
+
+/*
+ * A cloze blank that does not move when it is filled.
+ *
+ * The word is always in the DOM at its real width; hiding it is a matter of
+ * making the glyphs transparent and drawing a rule under them. Sizing a blank
+ * in `ch` only approximates the width of proportional type, so the sentence
+ * used to reflow at the exact moment the reader was checking themselves —
+ * every line after the blank shifted, and the eye had to find its place again.
+ */
+.blank {
+  color: transparent;
+  border-bottom: 1px solid currentcolor;
+  /* `color` is transparent, so the rule needs its own colour. */
+  border-bottom-color: var(--color-ink);
+}
+
+.dark .blank {
+  border-bottom-color: var(--color-lamp-ink);
 }
