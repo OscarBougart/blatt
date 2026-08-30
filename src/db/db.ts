@@ -94,6 +94,23 @@ export class BlattDB extends Dexie {
           [...counts].map(([lemma, count]) => ({ lemma, count, lastSeenAt: now })),
         );
       });
+
+    /**
+     * Epic 10. Every existing card becomes a recognition card.
+     *
+     * No new stores — this only stamps a mode onto words that predate the
+     * idea. Cloze was the only card there had ever been, but silently keeping
+     * everyone on it would make the new default a lie, and recognition is the
+     * right default for a reader.
+     */
+    this.version(6).upgrade(async (tx) => {
+      await tx
+        .table('words')
+        .toCollection()
+        .modify((word) => {
+          word.cardMode = word.cardMode ?? 'recognition';
+        });
+    });
   }
 }
 

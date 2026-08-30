@@ -61,6 +61,26 @@ describe('parseBackup', () => {
     expect(backup.forms).toEqual([]);
   });
 
+  it('still reads a version 1 file, from before the review log existed', () => {
+    const old = JSON.stringify({ format: FORMAT, version: 1, docs: [{ id: 'd' }] });
+    const backup = parseBackup(old);
+    expect(backup.docs).toHaveLength(1);
+    expect(backup.reviews).toEqual([]);
+    expect(backup.sightings).toEqual([]);
+  });
+
+  it('carries the review log through', () => {
+    const withLog = JSON.stringify({
+      format: FORMAT,
+      version: VERSION,
+      reviews: [{ id: 'r1', wordId: 'w1', grade: 3 }],
+      sightings: [{ lemma: 'Frosch', count: 4, lastSeenAt: NOW }],
+    });
+    const backup = parseBackup(withLog);
+    expect(backup.reviews).toHaveLength(1);
+    expect(backup.sightings).toHaveLength(1);
+  });
+
   it('refuses text that is not JSON', () => {
     expect(() => parseBackup('nope')).toThrow(/not JSON/);
   });

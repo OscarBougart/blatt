@@ -19,6 +19,8 @@ export interface Doc {
   createdAt: number;
 }
 
+export type CardMode = 'recognition' | 'cloze';
+
 export interface SavedWord {
   id: string;
   /** As it appeared in the text. */
@@ -52,6 +54,20 @@ export interface SavedWord {
   introducedAt?: number;
   /** Suspended cards are never scheduled. Set when a word becomes a leech. */
   suspended?: boolean;
+  /**
+   * Recognition shows the sentence and asks what the word means; cloze blanks
+   * the word and asks you to produce it.
+   *
+   * Recognition is the default because this is a reading app: it carries the
+   * bulk of vocabulary and lets you consume more, with production reserved for
+   * the words you actually intend to say.
+   */
+  cardMode?: CardMode;
+  /**
+   * How many unfamiliar words stood between this sentence and being an ideal
+   * card, when it was saved. Zero is i+1: the target and nothing else new.
+   */
+  sentenceScore?: number;
   /** When this word crossed the lapse threshold. */
   leechFlaggedAt?: number;
 }

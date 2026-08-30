@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { SavedWord } from '@/db/types';
 import type { LemmaCandidate } from '@/lib/lemma/types';
 import { deleteWord, retryLookup, setLemma, setNote } from '@/lib/corrections';
+import { applySentence, findBetterSentence, setCardMode } from '@/lib/reroll';
 import { truncateSentence } from '@/lib/words';
 
 interface Props {
@@ -37,6 +38,28 @@ export default function WordRow({ word, candidates, docTitle, expanded, onToggle
   const [note, setNoteText] = useState(word.note ?? '');
   const [typedLemma, setTypedLemma] = useState('');
   const [busy, setBusy] = useState(false);
+  const [rerolled, setRerolled] = useState<'none' | 'done' | null>(null);
+
+  const isCloze = word.cardMode === 'cloze';
+
+  /**
+   * Rebuild this card from a better sentence.
+   *
+   * Offered on every word, but it is here for the leeches. Six failures says
+   * the sentence is the problem, and the documented remedy is to rebuild the
+   * card from different context — half an hour of work in Anki, one tap here,
+   * because the corpus is already lemmatised and already aligned.
+   */
+  async function reroll() {
+    setRerolled(null);
+    const better = await findBetterSentence(word);
+    if (!better) {
+      setRerolled('none');
+      return;
+    }
+    await applySentence(word, better);
+    setRerolled('done');
+  }
 
   const others = candidates.filter((c) => c.lemma !== word.lemma).slice(0, 4);
 
@@ -142,6 +165,45 @@ export default function WordRow({ word, candidates, docTitle, expanded, onToggle
               className={`mt-2 w-full resize-y border-b bg-transparent py-2 font-[inherit] outline-none ${rule}`}
             />
           </div>
+
+          {/* A suspended leech says so, and says what to do about it. */}
+          {word.leechFlaggedAt !== undefined && (
+            <p className={`type-en mb-4 ${muted}`}>
+              Failed {word.lapses} times and set aside. The sentence is usually the problem
+              rather than the memory — try another one.
+            </p>
+          )}
+
+          <div className="mb-4 flex flex-wrap gap-3">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void run(reroll)}
+              className={`min-h-12 border px-4 ${rule}`}
+            >
+              Another sentence
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void run(() => setCardMode(word, isCloze ? 'recognition' : 'cloze'))}
+              className={`min-h-12 px-4 ${muted}`}
+            >
+              {isCloze ? 'Just recognise it' : 'Drill this actively'}
+            </button>
+          </div>
+
+          {rerolled === 'none' && (
+            <p role="status" className={`type-en mb-4 ${muted}`}>
+              No better sentence in anything you have read. Keep this one, read more, or delete
+              the word.
+            </p>
+          )}
+          {rerolled === 'done' && (
+            <p role="status" className="type-en mb-4">
+              Rebuilt from a cleaner sentence.
+            </p>
+          )}
 
           <div className="flex gap-3">
             {word.lookupFailed && (

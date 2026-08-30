@@ -3,7 +3,9 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/db/db';
 import type { SavedWord } from '@/db/types';
 import { lookupDefinition } from '@/lib/dict';
+import { buildFamiliarity } from '@/lib/familiarity';
 import { newId } from '@/lib/id';
+import { resolverFor, scoreSentence } from '@/lib/sentencePick';
 
 /** Matches the underline animation, so the row outlives the wipe-out. */
 export const MARK_MS = 160;
@@ -57,6 +59,8 @@ export function useSavedWords(docId: string | undefined) {
         docId,
         paragraphIndex: request.paragraphIndex,
         createdAt: Date.now(),
+        // Recognition until the reader asks otherwise. This is a reading app.
+        cardMode: 'recognition',
         // SM-2 starting state
         ease: 2.5,
         interval: 0,
@@ -67,6 +71,33 @@ export function useSavedWords(docId: string | undefined) {
 
       // The save does not wait on the network. The mark appears now.
       await db.words.add(word);
+
+      /**
+       * Score the sentence the word was actually met in.
+       *
+       * It stays the card's sentence — it is the one you were reading, and
+       * that context is worth more than a cleaner sentence you have never
+       * seen. The score is recorded so that "another sentence" later knows
+       * what it has to beat, and so a card can say how far it is from i+1.
+       *
+       * Off the save path deliberately: this reads four tables, and the
+       * underline has already been drawn.
+       */
+      void (async () => {
+        const [doc, words, sightings, logs] = await Promise.all([
+          db.docs.get(docId),
+          db.words.toArray(),
+          db.sightings.toArray(),
+          db.reviews.toArray(),
+        ]);
+        if (!doc) return;
+
+        const score = scoreSentence(request.sentence, request.lemma, {
+          lemmaOf: resolverFor(doc),
+          isFamiliar: buildFamiliarity({ words, sightings, logs }, Date.now()),
+        });
+        await db.words.update(word.id, { sentenceScore: score });
+      })();
 
       // Almost always a cache hit after import prefetch; a miss is silent.
       void lookupDefinition(request.lemma).then((entry) => {

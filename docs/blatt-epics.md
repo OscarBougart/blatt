@@ -128,8 +128,61 @@ No streaks, no retention percentage, no heatmap.
 
 ---
 
-## EPIC 10 — not yet written
+## EPIC 10 — Card redesign
 
-Referenced by 9.4: a leech, once suspended, gets "a proper fix" — rebuilding
-the card from a different sentence. The brief for this epic has not been
-supplied.
+The current card is a cloze: sentence with the word blanked. Research says that
+is the wrong default for a reading-focused learner, and that Blatt can build a
+better card than Anki can because it owns the corpus.
+
+### 10.1 — Default card is recognition, not production
+
+The standard sentence-mining card is the sentence in the target language with
+the target word marked, and the back giving the word's meaning in context plus
+a full translation for confirmation. Recognition should carry the bulk of
+vocabulary, since it lets you consume more content, with production reserved
+for high-frequency words you intend to speak. Blatt is a reading app.
+
+Front: the source sentence in ink, left-aligned, with the target word in ink
+and everything else at 85% opacity — emphasis by the rest receding, not by bold
+or colour.
+
+Back: the target word and its lemma, the definition, and the aligned English
+paragraph in graphite. Confirmation for free.
+
+Left alignment matters; centred multiline text is a known complaint about
+Anki's default card. A 100ms fade-in on the front stops the next card arriving
+as a jolt.
+
+### 10.2 — Cloze becomes a promotion, not the default
+
+Keep the cloze card as an opt-in per word, via a "drill this actively" control
+in the word list and on the card back. Store `cardMode` on `SavedWord` and
+migrate every existing word to `'recognition'`.
+
+A cloze card keeps the English gloss in graphite beneath the blanked sentence:
+a German sentence with a gap and no cue is often genuinely unanswerable.
+
+### 10.3 — i+1 sentence selection
+
+A good card has exactly one unknown word. Anki users judge this by eye; Blatt
+can compute it. `src/lib/sentencePick.ts` scores a sentence as the count of
+lemmas that are neither the target nor familiar, with a mild penalty outside
+6–18 words. Occurrences are scanned on demand and not indexed persistently.
+
+At save time the sentence the word was tapped in remains the default — it is
+the one you actually met — but its score is recorded.
+
+### 10.4 — Reroll: the feature Anki cannot have
+
+"Another sentence" searches the corpus for other sentences containing the lemma,
+ranks them by i+1 score, and swaps the card to the best. The English side comes
+along because it is already aligned. This is the proper fix for a leech, and is
+surfaced directly on any suspended one. If no better sentence exists, say so
+plainly and offer to keep it or delete the word.
+
+### 10.5 — Portfolio note
+
+Blatt is a sentence-mining tool where the mining is free. The friction of
+building cards by hand is why most people abandon the method, and reroll and
+i+1 scoring are only possible because the reader and the review system share
+one corpus.

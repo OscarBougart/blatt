@@ -3,10 +3,11 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import Page from '@/components/Page';
 import ReviewCard from '@/components/ReviewCard';
 import { db } from '@/db/db';
-import type { SavedWord } from '@/db/types';
+import type { CardMode, SavedWord } from '@/db/types';
 import { usePace } from '@/context/PaceContext';
 import { composeSession } from '@/lib/queue';
 import { gradeCard, introduce } from '@/lib/review';
+import { applySentence, findBetterSentence, setCardMode } from '@/lib/reroll';
 import { shuffle, type Grade } from '@/lib/srs';
 
 const muted = 'text-graphite dark:text-lamp-gph';
@@ -31,11 +32,14 @@ export default function ReviewPage() {
   /** When the current card went on screen, for the review log. */
   const shownAt = useRef(Date.now());
 
+  const [rerollState, setRerollState] = useState<'idle' | 'searching' | 'none'>('idle');
+
   const docs = useLiveQuery(() => db.docs.toArray(), [], []);
   const titles = useMemo(
     () => new Map((docs ?? []).map((doc) => [doc.id, doc.title])),
     [docs],
   );
+  const byId = useMemo(() => new Map((docs ?? []).map((doc) => [doc.id, doc])), [docs]);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,8 +75,55 @@ export default function ReviewPage() {
       if (!card) return;
       void gradeCard(card, grade, Date.now() - shownAt.current);
       setRevealed(false);
+      setRerollState('idle');
       setIndex((i) => i + 1);
       shownAt.current = Date.now();
+    },
+    [card],
+  );
+
+  /** Swap this card onto a better sentence, in place, without losing your spot. */
+  const onReroll = useCallback(async () => {
+    if (!card) return;
+    setRerollState('searching');
+
+    const better = await findBetterSentence(card);
+    if (!better) {
+      // Said plainly rather than silently doing nothing. The corpus simply
+      // does not contain a cleaner sentence for this word yet — reading more
+      // is what changes that.
+      setRerollState('none');
+      return;
+    }
+
+    await applySentence(card, better);
+    setQueue((current) =>
+      current?.map((w) =>
+        w.id === card.id
+          ? {
+              ...w,
+              sentence: better.sentence,
+              charOffset: better.charOffset,
+              docId: better.docId,
+              paragraphIndex: better.paragraphIndex,
+              sentenceScore: better.score,
+              suspended: false,
+            }
+          : w,
+      ) ?? null,
+    );
+    setRerollState('idle');
+    setRevealed(false);
+    shownAt.current = Date.now();
+  }, [card]);
+
+  const onSetMode = useCallback(
+    (mode: CardMode) => {
+      if (!card) return;
+      void setCardMode(card, mode);
+      setQueue(
+        (current) => current?.map((w) => (w.id === card.id ? { ...w, cardMode: mode } : w)) ?? null,
+      );
     },
     [card],
   );
@@ -94,9 +145,13 @@ export default function ReviewPage() {
       <ReviewCard
         word={card}
         docTitle={titles.get(card.docId) ?? ''}
+        translation={byId.get(card.docId)?.pairs[card.paragraphIndex]?.en ?? ''}
         revealed={revealed}
         onReveal={() => setRevealed(true)}
         onGrade={onGrade}
+        onSetMode={onSetMode}
+        onReroll={() => void onReroll()}
+        rerollState={rerollState}
       />
     </Page>
   );

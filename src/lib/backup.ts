@@ -1,5 +1,13 @@
 import { db } from '@/db/db';
-import type { DictEntry, Doc, FormEntry, SavedWord, Session } from '@/db/types';
+import type {
+  DictEntry,
+  Doc,
+  FormEntry,
+  ReviewLog,
+  SavedWord,
+  Session,
+  Sighting,
+} from '@/db/types';
 
 /**
  * Whole-database export and restore.
@@ -11,7 +19,14 @@ import type { DictEntry, Doc, FormEntry, SavedWord, Session } from '@/db/types';
  */
 
 export const FORMAT = 'blatt-backup';
-export const VERSION = 1;
+
+/**
+ * 2 adds the review log and the sightings, which arrived with Epic 9.
+ *
+ * A version 1 file is still read: its two missing tables simply restore empty,
+ * which is what they were when it was written.
+ */
+export const VERSION = 2;
 
 /** Nag after this long without an export. */
 export const BACKUP_INTERVAL_MS = 14 * 24 * 60 * 60 * 1000;
@@ -27,6 +42,13 @@ export interface Backup {
   dict: DictEntry[];
   sessions: Session[];
   forms: FormEntry[];
+  /**
+   * The review history. Irreplaceable: a card carries its current state and
+   * never the path it took, so a backup without this cannot be used to train
+   * a history-based scheduler later. Leaving it out was a real hole.
+   */
+  reviews: ReviewLog[];
+  sightings: Sighting[];
 }
 
 export interface MergeResult<T> {
@@ -88,6 +110,8 @@ export function parseBackup(text: string): Backup {
     dict: backup.dict ?? [],
     sessions: backup.sessions ?? [],
     forms: backup.forms ?? [],
+    reviews: backup.reviews ?? [],
+    sightings: backup.sightings ?? [],
   };
 }
 
@@ -135,15 +159,28 @@ export function backupFilename(at: number): string {
 }
 
 export async function exportBackup(): Promise<Backup> {
-  const [docs, words, dict, sessions, forms] = await Promise.all([
+  const [docs, words, dict, sessions, forms, reviews, sightings] = await Promise.all([
     db.docs.toArray(),
     db.words.toArray(),
     db.dict.toArray(),
     db.sessions.toArray(),
     db.forms.toArray(),
+    db.reviews.toArray(),
+    db.sightings.toArray(),
   ]);
 
-  return { format: FORMAT, version: VERSION, exportedAt: Date.now(), docs, words, dict, sessions, forms };
+  return {
+    format: FORMAT,
+    version: VERSION,
+    exportedAt: Date.now(),
+    docs,
+    words,
+    dict,
+    sessions,
+    forms,
+    reviews,
+    sightings,
+  };
 }
 
 export interface ImportSummary {
@@ -151,6 +188,7 @@ export interface ImportSummary {
   words: number;
   definitions: number;
   sessions: number;
+  reviews: number;
 }
 
 /**
@@ -160,7 +198,9 @@ export interface ImportSummary {
  * words pointing at documents that were never written.
  */
 export async function importBackup(backup: Backup): Promise<ImportSummary> {
-  return db.transaction('rw', [db.docs, db.words, db.dict, db.sessions, db.forms], async () => {
+  const tables = [db.docs, db.words, db.dict, db.sessions, db.forms, db.reviews, db.sightings];
+
+  return db.transaction('rw', tables, async () => {
     const merge = async <T>(
       table: { toArray: () => Promise<T[]>; bulkPut: (rows: T[]) => Promise<unknown> },
       incoming: T[],
@@ -177,8 +217,10 @@ export async function importBackup(backup: Backup): Promise<ImportSummary> {
     const definitions = await merge(db.dict, backup.dict, (e) => e.lemma);
     const sessions = await merge(db.sessions, backup.sessions, (s) => s.id);
     await merge(db.forms, backup.forms, (f) => f.surface);
+    const reviews = await merge(db.reviews, backup.reviews, (r) => r.id);
+    await merge(db.sightings, backup.sightings, (s) => s.lemma);
 
-    return { docs, words, definitions, sessions };
+    return { docs, words, definitions, sessions, reviews };
   });
 }
 
