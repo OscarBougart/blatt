@@ -62,6 +62,14 @@ describe('readableSessions', () => {
     expect(kept.map((s) => s.id)).toEqual(['b']);
   });
 
+  it('drops sessions that never finished', () => {
+    const kept = readableSessions([
+      session({ id: 'open', endedAt: undefined }),
+      session({ id: 'closed' }),
+    ]);
+    expect(kept.map((s) => s.id)).toEqual(['closed']);
+  });
+
   it('orders oldest first', () => {
     const kept = readableSessions([
       session({ id: 'new', startedAt: START + 1000 }),

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
+import DocRow from '@/components/DocRow';
 import Page from '@/components/Page';
 import { db } from '@/db/db';
 import { lastExportAt, shouldPromptBackup } from '@/lib/backup';
@@ -22,6 +23,7 @@ export default function HomePage() {
   // open is not worth a timer, and reading Date.now() every render would make
   // the count depend on when React happened to re-render.
   const [now] = useState(() => Date.now());
+  const [editing, setEditing] = useState(false);
   const due = useMemo(() => dueWords(words ?? [], now).length, [words, now]);
 
   const promptBackup = useMemo(() => {
@@ -65,26 +67,31 @@ export default function HomePage() {
           No texts yet. Import one to begin.
         </p>
       ) : (
-        <ul>
-          {docs.map((doc) => {
-            const saved = counts.get(doc.id) ?? 0;
-            return (
-              <li key={doc.id} className="border-b border-rule dark:border-lamp-gph/25">
-                <Link
-                  to={`/read/${doc.id}`}
-                  className="flex min-h-14 flex-col justify-center py-2"
-                >
-                  <span className="text-lg">{doc.title}</span>
-                  <span className="type-en text-graphite dark:text-lamp-gph">
-                    {doc.theme}
-                    {doc.theme && saved > 0 && ' · '}
-                    {saved > 0 && `${saved} ${saved === 1 ? 'word' : 'words'}`}
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+        <>
+          <ul>
+            {docs.map((doc) => (
+              <DocRow
+                key={doc.id}
+                doc={doc}
+                savedWords={counts.get(doc.id) ?? 0}
+                editing={editing}
+              />
+            ))}
+          </ul>
+
+          {/* A text could be added but never removed, which left the demo
+              stuck in the library for good. Kept behind a toggle so the
+              library stays a list of things to read rather than a row of
+              controls. */}
+          <button
+            type="button"
+            onClick={() => setEditing((on) => !on)}
+            aria-pressed={editing}
+            className="type-en mt-4 flex min-h-12 items-center text-graphite dark:text-lamp-gph"
+          >
+            {editing ? 'Done' : 'Edit'}
+          </button>
+        </>
       )}
     </Page>
   );

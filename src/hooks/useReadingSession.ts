@@ -9,16 +9,17 @@ export const IDLE_MS = 5 * 60 * 1000;
 const IDLE_CHECK_MS = 30 * 1000;
 
 /**
- * Opens a Session when the reader mounts and closes it on unmount, or after
- * five minutes of no activity.
+ * Opens a Session when the reader mounts and closes it on unmount, after five
+ * minutes of no activity, or as soon as the page is hidden.
  *
  * Both counters are sets of paragraph indices, not running totals, so
- * re-reading a paragraph does not inflate either side of the flip rate. The
- * rate is stored on every change and is deliberately not displayed anywhere
- * yet.
+ * re-reading a paragraph does not inflate either side of the flip rate.
  */
 export function useReadingSession(docId: string | undefined) {
   const sessionId = useRef<string | null>(null);
+  const startedAt = useRef(0);
+  /** Whether this session has ever been written to the database. */
+  const written = useRef(false);
   const viewed = useRef(new Set<number>());
   const flipped = useRef(new Set<number>());
   const lastActivity = useRef(Date.now());
@@ -30,25 +31,48 @@ export function useReadingSession(docId: string | undefined) {
     return { paragraphsViewed: v, paragraphsFlipped: f, flipRate: flipRate(v, f) };
   };
 
+  /**
+   * Write the session out, stamped with the last moment it was known alive.
+   *
+   * Two decisions here, both learned from rows this app actually produced.
+   *
+   * Nothing is written until there is something to write. A row created on
+   * mount survives as permanent rubbish whenever the page goes away without
+   * running cleanup, and opening a document to glance at it is not a reading
+   * session.
+   *
+   * And `endedAt` is written on every save rather than only at the end. A
+   * write started during `pagehide` or `visibilitychange` is routinely killed
+   * before IndexedDB commits it, so a session closed only at the end is a
+   * session that stays open forever — thirteen of them, in the database this
+   * was found in. Carrying the end time forward means the row is always
+   * complete: worst case it says the reading stopped at the last paragraph
+   * that was actually counted, which is true.
+   */
   const persist = useCallback(() => {
     const id = sessionId.current;
-    if (id) void db.sessions.update(id, counts());
-  }, []);
+    if (!id || !docId) return;
+
+    const totals = counts();
+    if (totals.paragraphsViewed === 0 && totals.paragraphsFlipped === 0) return;
+
+    written.current = true;
+    void db.sessions.put({
+      id,
+      docId,
+      startedAt: startedAt.current,
+      endedAt: Date.now(),
+      ...totals,
+    });
+  }, [docId]);
 
   const open = useCallback(() => {
     if (sessionId.current || !docId || !mounted.current) return;
-    const id = newId();
-    sessionId.current = id;
+    sessionId.current = newId();
+    startedAt.current = Date.now();
+    written.current = false;
     viewed.current = new Set();
     flipped.current = new Set();
-    void db.sessions.add({
-      id,
-      docId,
-      startedAt: Date.now(),
-      paragraphsViewed: 0,
-      paragraphsFlipped: 0,
-      flipRate: 0,
-    });
   }, [docId]);
 
   const close = useCallback(() => {
@@ -57,15 +81,14 @@ export function useReadingSession(docId: string | undefined) {
     sessionId.current = null;
 
     const totals = counts();
-    // A session in which nothing was read is not a session. Opening a document
-    // and immediately leaving would otherwise leave a zero row that drags the
-    // flip rate around, and StrictMode's double-mount creates one every time.
+    // A session in which nothing was read is not a session. It was never
+    // written, so there is nothing to clean up either.
     if (totals.paragraphsViewed === 0 && totals.paragraphsFlipped === 0) {
-      void db.sessions.delete(id);
+      if (written.current) void db.sessions.delete(id);
       return;
     }
-    void db.sessions.update(id, { ...totals, endedAt: Date.now() });
-  }, []);
+    persist();
+  }, [persist]);
 
   /** Any sign of life. Reopens a session that idled out. */
   const touch = useCallback(() => {
@@ -109,14 +132,24 @@ export function useReadingSession(docId: string | undefined) {
     return () => clearInterval(timer);
   }, [close]);
 
-  // A backgrounded phone may never run anything again, so flush on hide.
+  /**
+   * Close on hide as well as on unmount. This is a best effort — the write may
+   * not survive the page going away, which is exactly why `persist` keeps
+   * `endedAt` current rather than trusting this moment to do it.
+   *
+   * Reopening is cheap: any activity after this starts a fresh session.
+   */
   useEffect(() => {
-    const flush = () => {
-      if (document.visibilityState === 'hidden') persist();
+    const hide = () => {
+      if (document.visibilityState === 'hidden') close();
     };
-    document.addEventListener('visibilitychange', flush);
-    return () => document.removeEventListener('visibilitychange', flush);
-  }, [persist]);
+    document.addEventListener('visibilitychange', hide);
+    window.addEventListener('pagehide', close);
+    return () => {
+      document.removeEventListener('visibilitychange', hide);
+      window.removeEventListener('pagehide', close);
+    };
+  }, [close]);
 
   return { markViewed, markFlipped, touch };
 }

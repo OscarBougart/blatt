@@ -31,10 +31,17 @@ export function formatRate(rate: number): string {
   return `${Math.round(rate * 100)}%`;
 }
 
-/** Real sessions, oldest first. */
+/**
+ * Real, finished sessions, oldest first.
+ *
+ * A session with no `endedAt` has no duration to report, so reporting one
+ * would mean inventing it. Unfinished rows are also what a browser leaves
+ * behind when it takes the page away mid-read, and those are rubbish rather
+ * than reading.
+ */
 export function readableSessions(sessions: Session[]): Session[] {
   return sessions
-    .filter((s) => s.paragraphsViewed >= MIN_PARAGRAPHS)
+    .filter((s) => s.endedAt !== undefined && s.paragraphsViewed >= MIN_PARAGRAPHS)
     .sort((a, b) => a.startedAt - b.startedAt);
 }
 

@@ -89,3 +89,22 @@ export async function retryLookup(word: SavedWord): Promise<boolean> {
 export async function deleteWord(id: string): Promise<void> {
   await db.words.delete(id);
 }
+
+/**
+ * Delete a document, with everything that belongs to it.
+ *
+ * The saved words and the reading sessions go too: a word without its document
+ * has no sentence to show and no title to name, and a session that counts
+ * paragraphs of a text that no longer exists is a line in the statistics that
+ * cannot be explained.
+ *
+ * The dictionary cache is deliberately kept. It is not the document's — it was
+ * paid for once and is worth keeping for every text after this one.
+ */
+export async function deleteDoc(docId: string): Promise<void> {
+  await db.transaction('rw', [db.docs, db.words, db.sessions], async () => {
+    await db.words.where('docId').equals(docId).delete();
+    await db.sessions.where('docId').equals(docId).delete();
+    await db.docs.delete(docId);
+  });
+}
