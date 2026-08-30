@@ -19,24 +19,39 @@ export default function HomePage() {
     return byDoc;
   }, [words]);
 
-  // The clock is read once, on mount. A card coming due while this screen sits
-  // open is not worth a timer, and reading Date.now() every render would make
-  // the count depend on when React happened to re-render.
-  const [now] = useState(() => Date.now());
   const [editing, setEditing] = useState(false);
-  const due = useMemo(() => dueWords(words ?? [], now).length, [words, now]);
 
-  const promptBackup = useMemo(() => {
-    const created = (docs ?? []).map((doc) => doc.createdAt);
+  /**
+   * Counted inside the query, not during render.
+   *
+   * The clock has to be read when the data changes rather than when the
+   * component mounted. On a first launch the demo is still installing when
+   * this screen first renders, so a `now` captured at mount is earlier than
+   * the moment its six words become due — and the badge never appeared at
+   * all for the one visitor it exists for. Reading Date.now() during render
+   * would fix that and make the count depend on when React re-rendered
+   * instead; this way it depends on the words.
+   */
+  const due = useLiveQuery(
+    async () => dueWords(await db.words.toArray(), Date.now()).length,
+    [],
+    0,
+  );
+
+  // A fortnight's threshold does not care about milliseconds, so this one can
+  // safely be answered from the data as it arrives.
+  const promptBackup = useLiveQuery(async () => {
+    const [allDocs, allWords] = await Promise.all([db.docs.toArray(), db.words.toArray()]);
+    const created = allDocs.map((doc) => doc.createdAt);
     return shouldPromptBackup(
       {
         lastExport: lastExportAt(),
         oldestCreatedAt: created.length > 0 ? Math.min(...created) : null,
-        savedWords: (words ?? []).length,
+        savedWords: allWords.length,
       },
-      now,
+      Date.now(),
     );
-  }, [docs, words, now]);
+  }, [], false);
 
   if (docs === undefined) return <Page title="Blatt" />;
 
