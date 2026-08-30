@@ -62,6 +62,17 @@ cascade, and inlines every definition. It takes several minutes and caches
 everything it fetches under `scripts/.seed-cache/`. It is polite to Wikimedia
 and should stay that way.
 
+## Deploying
+
+The Vercel project is connected to this repository, so a push to `main`
+builds and goes live; pull requests get preview URLs. `npx vercel --prod`
+still works and is the way to ship something without committing it — which
+also means it can put uncommitted work in production, so prefer the push.
+
+`vercel.json` carries the SPA rewrite. Without it every route but `/` is a
+404 on a hard load, because Vercel serves the filesystem and there is no
+file at `/read/:docId`.
+
 ## The offline acceptance test
 
 Not a Lighthouse score. The test is a cold launch with no network:
