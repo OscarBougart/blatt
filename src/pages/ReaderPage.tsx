@@ -12,6 +12,7 @@ import { useFlipHint, HINT_SHIFT } from '@/hooks/useFlipHint';
 import { useWordSaving } from '@/hooks/useWordSaving';
 import { lemmatizeDocument } from '@/lib/lemma/lemmatizeDocument';
 import { lemmasOf, recordSightings } from '@/lib/sightings';
+import { positionOf, scrollTopFor } from '@/lib/readingPosition';
 
 type Side = 'de' | 'en';
 
@@ -63,11 +64,13 @@ export default function ReaderPage() {
     current: deCurrent,
     register: deRegister,
     setCurrent: setDeCurrent,
+    measure: measureDe,
   } = useCurrentParagraph(count, tracking && side === 'de', dePane);
   const {
     current: enCurrent,
     register: enRegister,
     setCurrent: setEnCurrent,
+    measure: measureEn,
   } = useCurrentParagraph(count, tracking && side === 'en', enPane);
 
   const current = side === 'de' ? deCurrent : enCurrent;
@@ -163,9 +166,13 @@ export default function ReaderPage() {
   const { hinting, seen } = useFlipHint(tracking);
 
   /**
-   * The flip carries the paragraph index across, not the scroll offset. German
-   * and English paragraphs are different heights, so pixels would land you
-   * somewhere arbitrary; paragraph 12 must become paragraph 12.
+   * The flip carries the reading position across, not the scroll offset.
+   *
+   * Both halves matter. The paragraph, because German and English paragraphs
+   * are different heights and pixels would land you somewhere arbitrary — and
+   * how far into it you were, because a paragraph here can be several screens
+   * tall, and arriving at the top of the right paragraph still means losing
+   * your place by a page and a half.
    */
   const flip = useCallback(
     (to: Side) => {
@@ -174,21 +181,46 @@ export default function ReaderPage() {
       const from = sideRef.current;
       if (to === from) return;
 
-      const index = from === 'de' ? deCurrent : enCurrent;
-      if (to === 'de') {
-        scrollToParagraph(dePane, index);
-        setDeCurrent(index);
-      } else {
-        scrollToParagraph(enPane, index);
-        setEnCurrent(index);
+      // Measured here rather than tracked in a ref. The scroll listener
+      // updates on an animation frame, which does not run while the page is
+      // hidden, so a stored position can be a frame stale; the pane is right
+      // in front of us and can simply be asked.
+      const fromPane = from === 'de' ? dePane : enPane;
+      const position = fromPane
+        ? positionOf(
+            from === 'de' ? measureDe() : measureEn(),
+            fromPane.scrollTop,
+            fromPane.clientHeight,
+          )
+        : { index: 0, fraction: 0 };
+
+      const pane = to === 'de' ? dePane : enPane;
+      if (pane) {
+        pane.scrollTop = scrollTopFor(
+          to === 'de' ? measureDe() : measureEn(),
+          position,
+          LANDING_OFFSET,
+        );
       }
+
+      if (to === 'de') setDeCurrent(position.index);
+      else setEnCurrent(position.index);
 
       sideRef.current = to;
       if (to === 'en') seen();
       touch();
       setSide(to);
     },
-    [deCurrent, enCurrent, dePane, enPane, setDeCurrent, setEnCurrent, touch, seen],
+    [
+      dePane,
+      enPane,
+      measureDe,
+      measureEn,
+      setDeCurrent,
+      setEnCurrent,
+      touch,
+      seen,
+    ],
   );
 
   /**

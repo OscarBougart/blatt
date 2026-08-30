@@ -321,7 +321,7 @@ after the verb and joined it. Two changes:
 
 - A separable candidate can no longer outrank the simple verb it was built from
   (0.48 / 0.42, both under the 0.50 suffix baseline).
-- Article-like prefixes (`ein`, `an`, `zu`, `bei`, `mit`, `nach`, `vor`, `aus`)
+- Article-like prefixes (`ein`, `an`, `zu`, `bei`, `mit` , `nach`, `vor`, `aus`)
   are skipped when the next token is capitalised, because a noun phrase is
   starting rather than a clause ending.
 

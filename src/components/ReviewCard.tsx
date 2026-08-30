@@ -92,9 +92,16 @@ export default function ReviewCard({
   const { before, hidden, after } = cloze(word.sentence, word.surface, word.charOffset);
   const definition = word.note?.trim() || word.definition;
 
-  // A cloze already shows the English as its cue, and a word card is asking
-  // *from* the English — in both cases the hint is already on screen.
-  const canHint = !wordOnly && !isCloze && Boolean(translation);
+  /**
+   * A word card is asking *from* the definition, so there is nothing to hint
+   * with. Everywhere else the hint is the word's own gloss.
+   *
+   * On a recognition card that gloss is effectively the answer, which is the
+   * point: Tipp is for the moment the word will not come and you would rather
+   * be told than sit there. Grading yourself honestly afterwards is the only
+   * thing that keeps it useful.
+   */
+  const canHint = !wordOnly && Boolean(definition);
 
   return (
     <>
@@ -129,12 +136,16 @@ export default function ReviewCard({
           </p>
         )}
 
-        {/* A cloze keeps the English as its standing cue: a German sentence
-            with a hole in it is often genuinely unanswerable, since several
-            words fit the grammar. Elsewhere the same text is the hint, given
-            only when it is asked for. */}
-        {!wordOnly && translation && (isCloze || hinted) && !revealed && (
+        {/* A cloze keeps the translation as its standing cue: a German
+            sentence with a hole in it is often genuinely unanswerable, since
+            several words fit the grammar. */}
+        {isCloze && !revealed && translation && (
           <p className={`type-en mt-4 ${muted}`}>{translation}</p>
+        )}
+
+        {/* The hint proper: what this one word means. */}
+        {hinted && !revealed && definition && (
+          <p className={`type-en mt-4 ${muted}`}>{definition}</p>
         )}
       </div>
 

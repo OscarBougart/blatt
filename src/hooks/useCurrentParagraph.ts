@@ -1,26 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { positionOf, type Paragraph } from '@/lib/readingPosition';
 
 /**
- * Tracks which paragraph the reader is currently on, inside a scroll container.
+ * Tracks which paragraph the reader is on, inside a scroll container.
  *
- * The current paragraph is the topmost one at least 50% visible. This index is
- * the backbone of the flip, of position restore, and of the flip-rate
- * statistic, so it is worth getting right rather than approximating from
- * scrollTop.
+ * This index is the backbone of three things — restoring your place, landing
+ * the flip where you were, and the denominator of the flip rate — so it is
+ * worth being exactly right rather than approximately clever.
  *
- * One case the 50% rule alone gets wrong: a paragraph taller than the viewport
- * can never reach 50% visibility, so it would be skipped entirely while it is
- * the only thing on screen. Such a paragraph counts as current when it spans
- * the container from top to bottom.
+ * It reads scroll offsets rather than watching intersections. The observer
+ * this replaced asked for the topmost paragraph at least half visible, which
+ * silently never matched a paragraph taller than the screen; on a text of long
+ * paragraphs the position sat on zero for the whole document and nobody could
+ * see why.
  *
  * `root` is the scrolling element. Each language pane scrolls independently,
  * so each gets its own instance of this hook.
  */
-export function useCurrentParagraph(
-  count: number,
-  enabled: boolean,
-  root: HTMLElement | null,
-) {
+export function useCurrentParagraph(count: number, enabled: boolean, root: HTMLElement | null) {
   const [current, setCurrent] = useState(0);
   const elements = useRef<(HTMLElement | null)[]>([]);
 
@@ -32,41 +29,43 @@ export function useCurrentParagraph(
     [],
   );
 
+  /** Measure the column as laid out right now. */
+  const measure = useCallback(
+    (): Paragraph[] =>
+      elements.current
+        .slice(0, count)
+        .map((el) => ({ top: el?.offsetTop ?? 0, height: el?.offsetHeight ?? 0 })),
+    [count],
+  );
+
   useEffect(() => {
     if (!enabled || count === 0 || !root) return;
 
-    // index -> whether it currently qualifies as visible
-    const visible = new Map<number, boolean>();
+    let frame = 0;
+    const read = () => {
+      frame = 0;
+      const next = positionOf(measure(), root.scrollTop, root.clientHeight);
+      // Only the index drives React. The fraction moves constantly and nothing
+      // on screen depends on it; the flip measures it afresh when it needs it.
+      setCurrent((previous) => (previous === next.index ? previous : next.index));
+    };
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const rootHeight = root.clientHeight;
+    // Coalesced to one read a frame: scroll fires far faster than layout can
+    // possibly change, and `offsetTop` forces a reflow when it is read.
+    const onScroll = () => {
+      if (frame === 0) frame = requestAnimationFrame(read);
+    };
 
-        for (const entry of entries) {
-          const index = Number((entry.target as HTMLElement).dataset.index);
-          if (Number.isNaN(index)) continue;
+    read();
+    root.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
 
-          const rootTop = entry.rootBounds?.top ?? 0;
-          const rect = entry.boundingClientRect;
-          const spansRoot = rect.top <= rootTop && rect.bottom >= rootTop + rootHeight;
+    return () => {
+      if (frame !== 0) cancelAnimationFrame(frame);
+      root.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+    };
+  }, [count, enabled, root, measure]);
 
-          visible.set(index, entry.intersectionRatio >= 0.5 || spansRoot);
-        }
-
-        let topmost = -1;
-        for (const [index, isVisible] of visible) {
-          if (isVisible && (topmost === -1 || index < topmost)) topmost = index;
-        }
-        if (topmost !== -1) setCurrent(topmost);
-      },
-      // Several thresholds so the callback fires as a paragraph crosses the
-      // halfway mark in either direction, not only on enter and leave.
-      { root, threshold: [0, 0.25, 0.5, 0.75, 1] },
-    );
-
-    for (const el of elements.current) if (el) observer.observe(el);
-    return () => observer.disconnect();
-  }, [count, enabled, root]);
-
-  return { current, register, setCurrent };
+  return { current, register, setCurrent, measure };
 }
