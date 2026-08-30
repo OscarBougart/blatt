@@ -1,7 +1,11 @@
 # Blatt — epics
 
-A record of the work, one epic per session. Epics 0–8 are described only by
-their commits; this file starts where the written briefs start.
+A record of the work, one epic per session. This file starts where the written
+briefs start.
+
+Epics 0–5 have no brief here and are described only by their commits. There is
+no Epic 8: the briefs went from 7 to 9, and nothing in the repository or its
+history refers to one.
 
 ---
 
