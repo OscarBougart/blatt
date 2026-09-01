@@ -17,6 +17,15 @@ export interface Doc {
   /** Where the reader left off. */
   lastParagraphIndex: number;
   createdAt: number;
+  /**
+   * Which library text this is, if it came from the library.
+   *
+   * Not indexed, so it needs no migration: an older document simply has no
+   * slug, which is the truth about it. The library list reads this to know
+   * what the reader has already added, and matching on the title instead
+   * would break the moment someone renames one.
+   */
+  librarySlug?: string;
 }
 
 export type CardMode = 'recognition' | 'cloze';

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Page from '@/components/Page';
+import LibrarySection from '@/components/LibrarySection';
 import { db } from '@/db/db';
 import { pairParagraphs, type PairResult } from '@/lib/pair';
 import { newId } from '@/lib/id';
@@ -121,6 +122,8 @@ export default function ImportPage() {
           {shared}
         </p>
       )}
+
+      <LibrarySection />
 
       <form onSubmit={onSubmit} className="space-y-6">
         <input
