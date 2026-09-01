@@ -32,11 +32,8 @@ function Choice({
 }
 
 /**
- * The word list, and the only place corrections happen.
- *
- * The reader has no word sheet by design, so every mistake the cascade made
- * gets fixed here instead — which is why the expanded row carries the lemma
- * candidates, a free-text lemma, the reader's own definition and a retry.
+ * The word list, and the only place corrections happen — the reader has no
+ * word sheet, so a wrong lemma has to be fixable here.
  */
 export default function WordsPage() {
   const [query, setQuery] = useState('');

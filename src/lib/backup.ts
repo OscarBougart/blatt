@@ -12,10 +12,9 @@ import type {
 /**
  * Whole-database export and restore.
  *
- * This is not a nice-to-have. iOS Safari evicts IndexedDB from sites it
- * decides are idle, and `navigator.storage.persist()` is not reliably honoured
- * there — so the only durable copy of a year of reading is one the reader has
- * taken out of the browser themselves.
+ * iOS Safari evicts IndexedDB from sites it decides are idle, and
+ * `navigator.storage.persist()` is not reliably honoured there, so the only
+ * durable copy is one the reader has taken out of the browser themselves.
  */
 
 export const FORMAT = 'blatt-backup';
@@ -43,9 +42,8 @@ export interface Backup {
   sessions: Session[];
   forms: FormEntry[];
   /**
-   * The review history. Irreplaceable: a card carries its current state and
-   * never the path it took, so a backup without this cannot be used to train
-   * a history-based scheduler later. Leaving it out was a real hole.
+   * The review history. A card carries its current state and never the path it
+   * took, so without this a restored backup can never train FSRS.
    */
   reviews: ReviewLog[];
   sightings: Sighting[];

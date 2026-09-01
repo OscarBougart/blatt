@@ -48,15 +48,13 @@ export async function translatorAvailability(): Promise<Availability> {
 /**
  * Start creating a translator. **Call this synchronously from a click.**
  *
- * Chrome refuses with `NotAllowedError` when the model still has to be
- * downloaded and there is no user gesture behind the request — and the gesture
- * is spent by the first `await`. So this returns the promise rather than being
- * an async function: the caller starts it as the first statement in the
- * handler and awaits it later, once the extraction it also needs has finished.
+ * Chrome throws `NotAllowedError` if the model still has to be downloaded and
+ * there is no user gesture behind the request — and the gesture is spent by
+ * the first `await`. Hence a plain function returning a promise rather than an
+ * async one: start it as the first statement in the handler, await it later.
  *
- * This is not a detail that announces itself. Without it the extension works
- * perfectly on any machine where the language pack happens to be present, and
- * fails on every machine where it is not.
+ * Without this the extension works on any machine that already has the German
+ * pack and fails on every machine that does not.
  */
 export function startTranslator(onProgress?: (fraction: number) => void): Promise<TranslatorInstance> {
   return Translator.create({
@@ -83,11 +81,8 @@ export async function detectLanguage(sample: string): Promise<string | null> {
 /**
  * Translate paragraphs one at a time, keeping the index.
  *
- * Deliberately not batched. Sending several paragraphs in one call is faster
- * and the model is free to merge or split them, which silently destroys the
- * index correspondence that makes this whole approach correct — the pairing is
- * the product, and a faster capture that pairs the wrong translation with a
- * paragraph is worth nothing.
+ * Deliberately not batched: sending several at once is faster, but the model
+ * is free to merge or split them, and the paragraph pairing is the product.
  */
 export async function translateEach(
   translator: TranslatorInstance,

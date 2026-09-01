@@ -23,25 +23,13 @@ export default function HomePage() {
 
   const [editing, setEditing] = useState(false);
 
-  /**
-   * Counted inside the query, not during render.
-   *
-   * The clock has to be read when the data changes rather than when the
-   * component mounted. On a first launch the demo is still installing when
-   * this screen first renders, so a `now` captured at mount is earlier than
-   * the moment its six words become due — and the badge never appeared at
-   * all for the one visitor it exists for. Reading Date.now() during render
-   * would fix that and make the count depend on when React re-rendered
-   * instead; this way it depends on the words.
-   */
-  /**
-   * What a session would actually contain, not how many words exist.
-   *
-   * Counting every word whose `dueAt` has passed would include the whole
-   * queue, so a reader who saved four hundred words in a fortnight would be
-   * met by "400 due" — the precise feeling the daily limit exists to prevent.
-   * The badge promises what pressing it delivers.
-   */
+  // What a session would actually contain, not how many words are past due —
+  // otherwise a fortnight of saving shows "400 due", the exact feeling the
+  // daily limit exists to prevent.
+  //
+  // Date.now() is read inside the query, not at mount: on a first launch the
+  // demo seed is still writing when this renders, so a mount-time clock is
+  // earlier than the moment its words fall due and the badge never appears.
   const due = useLiveQuery(
     async () => {
       const { due: cards, fresh } = composeSession(await db.words.toArray(), {
@@ -73,8 +61,7 @@ export default function HomePage() {
 
   return (
     <Page title="Blatt">
-      {/* The one number worth surfacing here: how much is waiting. Not a
-          streak, not a flame — a count, and only when it is not zero. */}
+      {/* A count, and only when it is not zero. */}
       {due > 0 && (
         <Link
           to="/review"
@@ -110,10 +97,8 @@ export default function HomePage() {
             ))}
           </ul>
 
-          {/* A text could be added but never removed, which left the demo
-              stuck in the library for good. Kept behind a toggle so the
-              library stays a list of things to read rather than a row of
-              controls. */}
+          {/* Behind a toggle so the library reads as a list of texts rather
+              than a row of controls. */}
           <button
             type="button"
             onClick={() => setEditing((on) => !on)}

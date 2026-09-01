@@ -53,13 +53,10 @@ export default function ReaderPage() {
   const count = doc?.pairs.length ?? 0;
   const { markViewed, markFlipped, touch } = useReadingSession(docId);
 
-  // Each pane scrolls independently, so each needs its own observer. Only the
-  // pane on screen is tracked — the other one is not being read.
-  //
-  // These are destructured deliberately: the hook returns a fresh object every
-  // render, and an effect that depends on the object re-runs every render. An
-  // effect that schedules anything would then cancel its own work in cleanup
-  // before it ever ran.
+  // Each pane scrolls independently, so each gets its own tracker; only the
+  // one on screen is live. Destructured deliberately — the hook returns a
+  // fresh object every render, and an effect depending on that object would
+  // cancel its own scheduled work in cleanup before it ran.
   const {
     current: deCurrent,
     register: deRegister,
@@ -76,12 +73,9 @@ export default function ReaderPage() {
   const current = side === 'de' ? deCurrent : enCurrent;
 
   /**
-   * A German paragraph that met the dwell threshold, counted two ways.
-   *
-   * The flip rate needs it, and so does the familiarity model: a word read
-   * past three times without ever being tapped is a word the reader knows.
-   * One batched write per paragraph, fired and forgotten — this happens
-   * constantly while reading and must never make the page wait.
+   * A German paragraph that met the dwell threshold, counted twice: once for
+   * the flip rate, once for the familiarity model. Fired and forgotten — this
+   * runs constantly and must never make the page wait.
    */
   const onGermanDwell = useCallback(
     (index: number) => {
@@ -129,11 +123,10 @@ export default function ReaderPage() {
   useEffect(() => {
     if (!doc || restoreTo === null || !dePane) return;
 
-    // The scroll itself must happen only once. Enabling tracking must happen
-    // on every run of this effect: StrictMode mounts effects twice, and a
-    // guard that skipped the second run would leave the frame scheduled by the
-    // first run already cancelled by its own cleanup — tracking would never
-    // turn on, silently disabling the flip, the stats and position saving.
+    // Scroll once, but enable tracking on every run. StrictMode mounts twice,
+    // and a guard that skipped the second run would leave the first run's
+    // frame already cancelled by its own cleanup — tracking would then never
+    // turn on, silently killing the flip, the stats and position saving.
     if (!restored.current) {
       restored.current = true;
       if (restoreTo > 0) {
@@ -166,13 +159,9 @@ export default function ReaderPage() {
   const { hinting, seen } = useFlipHint(tracking);
 
   /**
-   * The flip carries the reading position across, not the scroll offset.
-   *
-   * Both halves matter. The paragraph, because German and English paragraphs
-   * are different heights and pixels would land you somewhere arbitrary — and
-   * how far into it you were, because a paragraph here can be several screens
-   * tall, and arriving at the top of the right paragraph still means losing
-   * your place by a page and a half.
+   * The flip carries the reading position, not the scroll offset: paragraphs
+   * differ in height between the two languages, so pixels land arbitrarily.
+   * The fraction matters too — a paragraph here can be several screens tall.
    */
   const flip = useCallback(
     (to: Side) => {
@@ -181,10 +170,8 @@ export default function ReaderPage() {
       const from = sideRef.current;
       if (to === from) return;
 
-      // Measured here rather than tracked in a ref. The scroll listener
-      // updates on an animation frame, which does not run while the page is
-      // hidden, so a stored position can be a frame stale; the pane is right
-      // in front of us and can simply be asked.
+      // Measured here rather than read from a ref: the scroll listener updates
+      // on an animation frame, which does not run while the page is hidden.
       const fromPane = from === 'de' ? dePane : enPane;
       const position = fromPane
         ? positionOf(
@@ -224,19 +211,16 @@ export default function ReaderPage() {
   );
 
   /**
-   * One gesture, one idea: swipe right to go back, a step at a time.
-   *
-   * English → German → the library. Swiping right on the German pane is the
-   * only way out of the reader, which is why it has to be here and not in the
-   * flip: there is no chrome on this screen and, installed as a PWA, no
-   * browser back button either.
+   * Swipe right to go back, a step at a time: English → German → library.
+   * That last step is the only way out of the reader — there is no chrome on
+   * this screen and, installed as a PWA, no browser back button either.
    */
   const onSwipe = useCallback(
     (direction: 'left' | 'right') => {
       lastSwipeAt.current = Date.now();
 
-      // Right-to-left drags English in from the right; left-to-right pushes it
-      // back off. The gesture and the motion go the same way.
+      // Right-to-left drags English in from the right. Gesture and motion
+      // travel the same way.
       if (direction === 'left') {
         flip('en');
         return;
@@ -253,8 +237,8 @@ export default function ReaderPage() {
   );
   const swipe = useSwipe(onSwipe);
 
-  // A swipe ends in a click on some browsers. Flipping the language and saving
-  // a word with the same gesture would be maddening.
+  // Some browsers end a swipe with a click; without this, one gesture both
+  // flips the language and saves a word.
   const ignoreTap = useCallback(() => Date.now() - lastSwipeAt.current < 400, []);
   const onWordTap = useWordSaving({ doc, saved, save, remove, touch, ignoreTap });
 
@@ -301,22 +285,24 @@ export default function ReaderPage() {
         />
       </div>
 
-      {/* Accessibility fallbacks for the two swipes. Invisible, but real
-          buttons: the gestures are the interface, and a reader on a keyboard
-          or a screen reader must not be shut out of them — least of all the
-          one that leaves the document. */}
+      {/* Keyboard and screen-reader equivalents for the two swipes. Off-screen
+          rather than transparent overlays: a 24px invisible button down each
+          edge swallowed double-taps on the first and last word of every line,
+          and a stray thumb on the left edge left the document entirely. */}
       <button
         type="button"
         onClick={() => void navigate('/')}
-        aria-label="Back to library"
-        className="absolute left-0 top-0 h-full w-6 cursor-default opacity-0"
-      />
+        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-10 focus:bg-paper focus:p-2 dark:focus:bg-lamp"
+      >
+        Back to library
+      </button>
       <button
         type="button"
         onClick={() => flip(side === 'de' ? 'en' : 'de')}
-        aria-label={side === 'de' ? 'Show English' : 'Show German'}
-        className="absolute right-0 top-0 h-full w-6 cursor-default opacity-0"
-      />
+        className="sr-only focus:not-sr-only focus:absolute focus:right-2 focus:top-2 focus:z-10 focus:bg-paper focus:p-2 dark:focus:bg-lamp"
+      >
+        {side === 'de' ? 'Show English' : 'Show German'}
+      </button>
     </div>
   );
 }

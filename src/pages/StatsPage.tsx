@@ -18,13 +18,8 @@ import {
 const muted = 'text-graphite dark:text-lamp-gph';
 
 /**
- * Two diagnostics from the review log, deliberately minor.
- *
- * Small, graphite, below the flip rate and after it — the reading statistic is
- * the headline and these are footnotes to it. The strip is there so the pile
- * can be seen coming rather than discovered; the median is there because a
- * number that climbs means the cards have got too hard, which is a fact about
- * the deck and not about the reader. No streak, no retention, no heatmap.
+ * Two footnotes to the flip rate: how much is arriving, and how long a card
+ * takes. A climbing median means the deck has got too hard.
  */
 function ReviewLoad({ logs }: { logs: ReviewLog[] }) {
   const [now] = useState(() => Date.now());
@@ -68,11 +63,8 @@ function formatDate(at: number): string {
 }
 
 /**
- * The whole of the app's self-reporting.
- *
- * Flip rate and nothing else: no words-learned total, no time-read total, no
- * streak. Any second number here would immediately become a thing to optimise,
- * and the first casualty would be honest flipping.
+ * Flip rate and nothing else. A second headline number would become a thing
+ * to optimise, and honest flipping would be the first casualty.
  */
 export default function StatsPage() {
   const sessions = useLiveQuery(() => db.sessions.toArray(), [], [] as Session[]);
@@ -87,9 +79,8 @@ export default function StatsPage() {
   const readable = useMemo(() => readableSessions(sessions ?? []), [sessions]);
   const newestFirst = useMemo(() => readable.slice().reverse(), [readable]);
 
-  // Reviewing and reading are separate habits and either can run ahead of the
-  // other. Someone grading cards on a train has review history worth showing
-  // even before a reading session has met the threshold.
+  // Review history is worth showing even before any reading session has met
+  // the dwell threshold.
   if (readable.length === 0) {
     return (
       <Page title="Flip rate">

@@ -18,19 +18,15 @@ const CONFIRM_MS = 4000;
 /**
  * One text in the library, and the only place a text can be deleted.
  *
- * Removal is two taps, not a dialog. A modal asking "are you sure?" is the
- * thing this app is trying not to be, but deleting a text takes its saved
- * words and its reading history with it, and that is far too much to lose to
- * one mistaken tap. So the button asks by becoming the question.
+ * Two taps rather than a modal. Deleting a text takes its saved words and its
+ * reading history with it, which is too much to lose to one stray tap.
  */
 export default function DocRow({ doc, savedWords, editing }: Props) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  // Backs out on its own. A control left sitting in its armed state is a trap
-  // for whoever picks the phone up next.
-  // Leaving edit mode disarms it, derived rather than stored: two sources of
-  // truth for one button would eventually disagree.
+  // Derived rather than stored, so leaving edit mode disarms it too. It also
+  // times out below — a control left armed is a trap for the next person.
   const armed = confirming && editing;
 
   useEffect(() => {
@@ -64,8 +60,7 @@ export default function DocRow({ doc, savedWords, editing }: Props) {
           type="button"
           onClick={() => void onRemove()}
           disabled={busy}
-          // Armed state is full-contrast ink, not `signal`. That colour is
-          // spent on the flip rate and nowhere else in the product.
+          // Ink, not `signal` — that colour is spent on the flip rate.
           className={`min-h-12 shrink-0 px-2 text-[15px] ${
             armed ? 'text-ink dark:text-lamp-ink' : muted
           }`}

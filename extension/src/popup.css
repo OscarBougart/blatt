@@ -1,8 +1,7 @@
 /*
- * Ink and graphite, as in the app.
- *
- * The tokens are imported from the app's stylesheet rather than restated, so
- * the two cannot drift apart; only the layout below is the popup's own.
+ * Ink and graphite, as in the app: the tokens are imported from the app's
+ * stylesheet rather than restated, so the two cannot drift. Only the layout
+ * below belongs to the popup.
  */
 @import '../../src/index.css';
 
@@ -81,4 +80,11 @@ button:disabled {
 
 a {
   color: inherit;
+}
+
+/* The double-click gesture, named where the reader can act on it. */
+.gesture {
+  margin: 10px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-rule);
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FORMAT, VERSION, buildBundle, bundleFilename } from './bundle';
+import { FORMAT, VERSION, buildBundle, bundleFilename, wordKey } from './bundle';
 import { cleanBlocks, fallbackTitle, tidy } from './blocks';
 
 const NOW = Date.UTC(2026, 7, 30);
@@ -81,18 +81,22 @@ describe('buildBundle', () => {
 });
 
 describe('bundleFilename', () => {
+  it('never collides with a backup, which is blatt-<date>.json', () => {
+    expect(bundleFilename('Der Frosch am Brunnen', NOW)).toMatch(/^blatt-capture-/);
+  });
+
   it('is a readable, sortable name', () => {
     expect(bundleFilename('Der Frosch am Brunnen', NOW)).toBe(
-      'blatt-der-frosch-am-brunnen-2026-08-30.json',
+      'blatt-capture-der-frosch-am-brunnen-2026-08-30.json',
     );
   });
 
   it('folds umlauts rather than dropping them', () => {
-    expect(bundleFilename('Königstöchter', NOW)).toBe('blatt-koenigstoechter-2026-08-30.json');
+    expect(bundleFilename('Königstöchter', NOW)).toBe('blatt-capture-koenigstoechter-2026-08-30.json');
   });
 
   it('survives a title with nothing usable in it', () => {
-    expect(bundleFilename('!!!', NOW)).toBe('blatt-capture-2026-08-30.json');
+    expect(bundleFilename('!!!', NOW)).toBe('blatt-capture-article-2026-08-30.json');
   });
 });
 
@@ -132,5 +136,27 @@ describe('fallbackTitle', () => {
 
   it('survives nonsense', () => {
     expect(fallbackTitle('not a url')).toBe('Captured article');
+  });
+});
+
+describe('wordKey', () => {
+  const base = { url: 'https://x.de/a', sentence: 'Der Hund bellt.', charOffset: 4, surface: 'Hund' };
+
+  it('is the same for the same word in the same place', () => {
+    expect(wordKey(base)).toBe(wordKey({ ...base }));
+  });
+
+  it('separates the same word twice in one sentence', () => {
+    expect(wordKey(base)).not.toBe(wordKey({ ...base, charOffset: 20 }));
+  });
+
+  it('separates the same sentence on two pages', () => {
+    expect(wordKey(base)).not.toBe(wordKey({ ...base, url: 'https://y.de/a' }));
+  });
+
+  it('does not collide across field boundaries', () => {
+    expect(wordKey({ url: 'a', sentence: 'b', charOffset: 1, surface: 'c' })).not.toBe(
+      wordKey({ url: 'a', sentence: 'b|1', charOffset: 0, surface: 'c' }),
+    );
   });
 });

@@ -1,16 +1,19 @@
-import { useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Page from '@/components/Page';
 import { db } from '@/db/db';
 import { pairParagraphs, type PairResult } from '@/lib/pair';
 import { newId } from '@/lib/id';
 import { importDocument, type ImportProgress } from '@/lib/importDocument';
+import { importBackup, parseBackup } from '@/lib/backup';
+import { sharedOutcome, takeSharedCapture } from '@/lib/sharedCapture';
 
 const field =
   'w-full min-h-12 border-b border-rule bg-transparent py-2 outline-none placeholder:text-graphite/60 focus:border-ink dark:border-lamp-gph/25 dark:placeholder:text-lamp-gph/60 dark:focus:border-lamp-ink';
 
 export default function ImportPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [title, setTitle] = useState('');
   const [theme, setTheme] = useState('');
   const [de, setDe] = useState('');
@@ -19,6 +22,53 @@ export default function ImportPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<ImportProgress | null>(null);
+  const [shared, setShared] = useState<string | null>(null);
+  const claimed = useRef(false);
+
+  /*
+   * Arriving from the phone's share sheet. The worker has already parked the
+   * file; this takes it, restores it, and — since a capture is one text —
+   * opens it. Nothing here touches the paste form below, which stays usable
+   * if the share turns out to be empty.
+   */
+  useEffect(() => {
+    const outcome = sharedOutcome(location.search);
+    if (outcome === 'none' || claimed.current) return;
+    claimed.current = true;
+
+    if (outcome !== 'ready') {
+      setShared(
+        outcome === 'empty'
+          ? 'That share had no file in it.'
+          : 'The shared file could not be read. Try Restore in Settings instead.',
+      );
+      navigate('/import', { replace: true });
+      return;
+    }
+
+    void (async () => {
+      setShared('Reading the shared file…');
+      try {
+        const text = await takeSharedCapture();
+        if (text === null) throw new Error('Nothing was shared.');
+
+        const backup = parseBackup(text);
+        const summary = await importBackup(backup);
+
+        if (backup.docs.length === 1) {
+          navigate(`/read/${backup.docs[0].id}`, { replace: true });
+          return;
+        }
+        setShared(
+          `Imported ${summary.docs} texts, ${summary.words} words, ${summary.definitions} definitions.`,
+        );
+        navigate('/import', { replace: true });
+      } catch (cause) {
+        setShared(cause instanceof Error ? cause.message : 'That share could not be imported.');
+        navigate('/import', { replace: true });
+      }
+    })();
+  }, [location.search, navigate]);
 
   async function save(result: PairResult) {
     setSaving(true);
@@ -35,16 +85,15 @@ export default function ImportPage() {
         createdAt: Date.now(),
       });
 
-      // Lemmatise, then prefetch every definition the document needs, as one
-      // pass. When this finishes the document is fully readable offline —
-      // there is no half-imported state to explain.
+      // Lemmatise and prefetch every definition in one pass, so there is no
+      // half-imported state: when this returns, the text works offline.
       const lemmaMap = await importDocument(result.pairs, setProgress);
       await db.docs.update(id, { lemmaMap });
 
       navigate(`/read/${id}`);
     } catch (cause) {
-      // Whatever went wrong, the text the user just pasted is still in the
-      // form. Say so, and let them try again — never strand them on "Saving…".
+      // The pasted text is still in the form. Say so rather than stranding
+      // them on "Importing…".
       setError(cause instanceof Error ? cause.message : String(cause));
       setSaving(false);
       setProgress(null);
@@ -67,6 +116,12 @@ export default function ImportPage() {
 
   return (
     <Page title="Import">
+      {shared && (
+        <p role="status" className="type-en mb-6 text-graphite dark:text-lamp-gph">
+          {shared}
+        </p>
+      )}
+
       <form onSubmit={onSubmit} className="space-y-6">
         <input
           value={title}
@@ -121,8 +176,7 @@ export default function ImportPage() {
           </p>
         )}
 
-        {/* One bar for both passes. The document is either ready to read
-            offline or still importing; there is no third state. */}
+        {/* One bar for both passes: importing, or ready. No third state. */}
         {saving && progress && (
           <div aria-live="polite">
             <div className="h-px w-full bg-rule dark:bg-lamp-gph/25">

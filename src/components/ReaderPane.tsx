@@ -15,13 +15,11 @@ interface Props {
 }
 
 /**
- * One full-screen column of one language.
+ * One full-screen column of one language. Two sit side by side on a track
+ * twice the screen width.
  *
- * Two of these sit side by side on a track twice the width of the screen, and
- * only one is ever legible. The other is not merely off-screen: it is `inert`,
- * so it cannot be reached by keyboard, screen reader, or find-in-page. German
- * and English are never both available at once, and that has to hold for
- * every way of reading, not just for the eyes.
+ * The off-screen pane is `inert`, not merely hidden: otherwise keyboard,
+ * screen reader and find-in-page can all still reach the English.
  */
 export default function ReaderPane({
   language,
@@ -41,10 +39,9 @@ export default function ReaderPane({
       aria-hidden={!active}
       {...{ inert: active ? undefined : '' }}
       className="relative h-full w-1/2 select-none overflow-y-auto overscroll-contain"
-      // `manipulation` removes the browser's double-tap zoom, which would
-      // otherwise fight the save gesture, and its 300ms click delay with it.
-      // Settings carries the type-size control, because this also disables
-      // pinch-zoom.
+      // Kills double-tap zoom, which fights the save gesture, and the 300ms
+      // click delay with it. It also kills pinch-zoom — hence the type-size
+      // control in Settings.
       style={{ touchAction: 'manipulation' }}
     >
       <article

@@ -27,27 +27,21 @@ const muted = 'text-graphite dark:text-lamp-gph';
 const answer = 'text-reveal dark:text-lamp-reveal';
 
 /** Quiet, bordered, thumb-sized. A control, not a heading. */
-const button = `min-h-12 rounded-sm border px-4 ${rule} ${muted}`;
+const button = `min-h-12 rounded-sm border px-4 transition-colors active:bg-ink/5 dark:active:bg-lamp-ink/10 ${rule} ${muted}`;
 
 /**
- * The target word, hidden or shown, occupying exactly the same space either
- * way.
- *
- * The word is always laid out; hiding it is a matter of transparent glyphs and
- * a rule underneath. A blank measured in `ch` only approximates proportional
- * type, so the sentence used to reflow at the exact moment the reader was
- * checking their answer — everything after the gap jumped, and the eye had to
- * find its place again.
+ * The target word, hidden or shown, taking the same space either way:
+ * transparent glyphs over a rule, not a blank measured in `ch`. A `ch` blank
+ * only approximates proportional type, so the sentence reflowed at the exact
+ * moment the reader was checking their answer.
  */
 function Slot({ word, revealed }: { word: string; revealed: boolean }) {
   return <span className={revealed ? answer : 'blank'}>{word}</span>;
 }
 
 /**
- * The sentence with the target at full strength and the rest receding.
- *
- * Emphasis by subtraction rather than by weight: bold would change the shape
- * of the very word being recognised.
+ * The sentence with the target at full strength and the rest receding. Not
+ * bold: that would change the shape of the word being recognised.
  */
 function Marked({
   sentence,
@@ -92,15 +86,9 @@ export default function ReviewCard({
   const { before, hidden, after } = cloze(word.sentence, word.surface, word.charOffset);
   const definition = word.note?.trim() || word.definition;
 
-  /**
-   * A word card is asking *from* the definition, so there is nothing to hint
-   * with. Everywhere else the hint is the word's own gloss.
-   *
-   * On a recognition card that gloss is effectively the answer, which is the
-   * point: Tipp is for the moment the word will not come and you would rather
-   * be told than sit there. Grading yourself honestly afterwards is the only
-   * thing that keeps it useful.
-   */
+  // A word card already shows the definition, so there is nothing to hint
+  // with. Elsewhere the hint is the word's own gloss — close to the answer on
+  // a recognition card, which is what Tipp is for.
   const canHint = !wordOnly && Boolean(definition);
 
   return (
@@ -136,9 +124,8 @@ export default function ReviewCard({
           </p>
         )}
 
-        {/* A cloze keeps the translation as its standing cue: a German
-            sentence with a hole in it is often genuinely unanswerable, since
-            several words fit the grammar. */}
+        {/* A cloze keeps the translation as a standing cue — a German sentence
+            with a hole in it is often genuinely ambiguous. */}
         {isCloze && !revealed && translation && (
           <p className={`type-en mt-4 ${muted}`}>{translation}</p>
         )}
@@ -151,9 +138,8 @@ export default function ReviewCard({
 
       {revealed ? (
         <div className={`mt-8 border-t pt-6 ${rule}`}>
-          {/* On a word card the answer is already large and above this, so
-              repeating it here would just be the same word twice. What is
-              worth adding is the form it actually took in the text. */}
+          {/* The lemma is already above on a word card; only the inflected
+              form it was read in is worth adding. */}
           {wordOnly ? (
             word.surface !== word.lemma && (
               <p className={`type-en ${muted}`} lang="de">
@@ -179,8 +165,7 @@ export default function ReviewCard({
             </>
           )}
 
-          {/* The whole aligned paragraph. Already stored, already aligned —
-              confirmation costs nothing here and is written by hand in Anki. */}
+          {/* The aligned paragraph, already stored. */}
           {translation && <p className={`type-en mt-4 ${muted}`}>{translation}</p>}
 
           <p className={`type-en mt-4 ${muted}`}>{docTitle}</p>
@@ -222,14 +207,14 @@ export default function ReviewCard({
       )}
 
       {revealed && (
-        <div className={`fixed inset-x-0 bottom-12 border-t bg-paper dark:bg-lamp ${rule}`}>
+        <div className={`card-in fixed inset-x-0 bottom-12 border-t bg-paper dark:bg-lamp ${rule}`}>
           <div className="mx-auto flex max-w-prose">
             {GRADES.map((grade) => (
               <button
                 key={grade}
                 type="button"
                 onClick={() => onGrade(grade)}
-                className="min-h-16 flex-1 text-[15px]"
+                className="min-h-16 flex-1 text-[15px] transition-colors active:bg-ink/5 dark:active:bg-lamp-ink/10"
               >
                 {GRADE_LABEL[grade]}
               </button>

@@ -6,12 +6,9 @@ import { fetchDefinitions } from '@app/lib/dictApi';
 import type { CapturedWord } from './bundle';
 
 /**
- * Lemmatising and looking up a captured article.
- *
- * This is the app's own cascade, imported rather than copied. A captured
- * document has to arrive lemmatised exactly as an imported one would be, or
- * tapping a word on the phone finds a different answer depending on which door
- * the text came through.
+ * Lemmatising and looking up a captured article, using the app's own cascade
+ * rather than a copy of it. Otherwise tapping a word on the phone gives a
+ * different answer depending on which door the text came through.
  */
 
 /** Polite, and the same figure the app's import uses. */
@@ -64,11 +61,9 @@ export interface Analysed {
 }
 
 /**
- * Lemmatise the German, then fetch every definition it needs.
- *
- * By the time this finishes the document can be read on a phone with no
- * network at all, which is the point of doing it here rather than on first
- * open: the laptop has the connection and the patience, the phone has neither.
+ * Lemmatise the German, then fetch every definition it needs, so the document
+ * arrives on the phone fully readable offline. The laptop has the connection
+ * and the patience for this; the phone has neither.
  */
 export async function analyse(
   german: string[],
@@ -114,10 +109,9 @@ export async function analyse(
 }
 
 /**
- * Fill in the lemma and definition of words saved by double-clicking.
- *
- * They are stored bare while reading — the page has no cascade and no reason
- * to wait on the network for a gesture that should feel instant.
+ * Fill in the lemma and definition of words saved by double-clicking. They are
+ * stored bare in the page: a save should feel instant, and the content script
+ * has neither the cascade nor a reason to wait on the network.
  */
 export async function resolveWords(
   words: CapturedWord[],

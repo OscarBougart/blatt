@@ -11,10 +11,8 @@ import {
 } from './lib/translate';
 
 /**
- * The whole interface: what was found, and a button.
- *
- * No options, no settings, no onboarding. This is a capture tool — reading
- * happens in Blatt, on the phone.
+ * The whole interface: what was found, and a button. No options, no settings —
+ * this captures, and the reading happens in Blatt on the phone.
  */
 
 const root = document.getElementById('root')!;
@@ -31,6 +29,7 @@ interface Article {
 let article: Article | null = null;
 let language: string | null = null;
 let busy = false;
+let savedHere = 0;
 
 function el(html: string): HTMLElement {
   const holder = document.createElement('div');
@@ -62,12 +61,18 @@ async function readPage(tabId: number): Promise<Article | null> {
   }
 }
 
+/** How many words are already banked on this page. */
+async function countSaved(url: string): Promise<number> {
+  const stored = await chrome.storage.local.get(STORE);
+  return ((stored[STORE] as CapturedWord[]) ?? []).filter((word) => word.url === url).length;
+}
+
 function render() {
   const paragraphs = article?.paragraphs.length ?? 0;
   const wrongLanguage = language !== null && language !== 'de';
 
-  root.replaceChildren(
-    el(`<h1>${article ? escape(article.title) : 'Blatt Capture'}</h1>`),
+  const nodes = [
+    el(`<h1>${article ? escapeHtml(article.title) : 'Blatt Capture'}</h1>`),
     el(`<p class="muted">${
       article
         ? `${paragraphs} paragraph${paragraphs === 1 ? '' : 's'}${
@@ -75,9 +80,25 @@ function render() {
           }`
         : 'Open a German article and press the icon again.'
     }</p>`),
+  ];
+
+  // The gesture is only worth naming on a page that can actually be captured;
+  // anywhere else it is an instruction for something the reader cannot do.
+  if (paragraphs > 0 && !wrongLanguage) {
+    nodes.push(
+      el(`<p class="muted gesture">${
+        savedHere === 0
+          ? 'Double-click a word in the page to save it.'
+          : `${savedHere} word${savedHere === 1 ? '' : 's'} saved here · click one in the page to remove it.`
+      }</p>`),
+    );
+  }
+
+  nodes.push(
     el('<div class="bar" id="bar"><span style="width:0"></span></div>'),
     el('<p class="muted problem" id="status"></p>'),
   );
+  root.replaceChildren(...nodes);
 
   if (!article || paragraphs === 0) {
     say('Nothing readable on this page.');
@@ -100,24 +121,24 @@ function render() {
     say('No article found. Capturing the whole page instead, which will be untidy.');
   }
 
+  if (article.ok) say('');
+
   const button = el('<button class="primary">Capture for Blatt</button>') as HTMLButtonElement;
   // Not `await`ed anywhere before the translator is requested — see capture().
   button.addEventListener('click', () => void capture(button));
   root.append(button);
 }
 
-function escape(text: string): string {
+function escapeHtml(text: string): string {
   return text.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c]!);
 }
 
 /**
  * The capture itself.
  *
- * The translator is requested as the very first statement, before any `await`.
- * Chrome refuses to start a model download without a user gesture behind it,
- * and the gesture is spent the moment this function suspends — so asking for
- * it later works on a machine that already has the language pack and fails on
- * every machine that does not.
+ * The translator is requested as the very first statement, before any `await`:
+ * Chrome will not start a model download without a user gesture behind it, and
+ * the gesture is spent the moment this function suspends. See startTranslator.
  */
 async function capture(button: HTMLButtonElement) {
   if (busy || !article) return;
@@ -202,6 +223,7 @@ async function main() {
 
   article = await readPage(tabId);
   if (article) {
+    savedHere = await countSaved(article.url);
     language = await detectLanguage(article.sample);
     if (hasTranslator() && (await translatorAvailability()) === 'unavailable') {
       render();
@@ -210,7 +232,6 @@ async function main() {
     }
   }
   render();
-  say('');
 }
 
 void main();

@@ -18,11 +18,8 @@ function formatDue(at: number): string {
 }
 
 /**
- * The review session.
- *
- * The queue is drawn once, on mount, and then left alone. A live query would
- * re-sort the deck underneath you as you graded it — cards would vanish
- * mid-session and the count would move while you were reading it.
+ * The review session. The queue is drawn once and then left alone — a live
+ * query would re-sort the deck under you as you graded it.
  */
 export default function ReviewPage() {
   const { newPerDay } = usePace();
@@ -30,6 +27,12 @@ export default function ReviewPage() {
   const [style, setStyle] = useState<SessionStyle | null>(null);
   /** Set when the reader asks to go on past what was actually due. */
   const [ahead, setAhead] = useState(false);
+  /**
+   * Bumped to redeal. `ahead` alone cannot be the trigger: going again after
+   * an ahead session leaves it already true, the effect never re-runs, and the
+   * page sits on a blank queue for good.
+   */
+  const [deal, setDeal] = useState(0);
   const [queue, setQueue] = useState<SavedWord[] | null>(null);
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -63,10 +66,8 @@ export default function ReviewPage() {
 
       const { due, fresh } = composeSession(all, { newPerDay, now: Date.now() });
 
-      // Stamped now, not when they are first shown. A session interrupted
-      // halfway has still spent those words out of today's allowance — the
-      // limit exists to pace what enters the deck, and re-offering them later
-      // the same day would quietly defeat it.
+      // Stamped now, not when each card is first shown: a session abandoned
+      // halfway has still spent those words out of today's allowance.
       await introduce(fresh);
 
       if (cancelled) return;
@@ -83,9 +84,15 @@ export default function ReviewPage() {
     // deliberately: changing the daily limit mid-session must not redeal the
     // cards under the reader.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [style, ahead]);
+  }, [style, ahead, deal]);
 
   const card = queue?.[index];
+
+  // A long sentence leaves the page scrolled down. Without this the next card
+  // opens halfway through itself, with the question above the fold.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [index]);
 
   const onGrade = useCallback(
     (grade: Grade) => {
@@ -107,9 +114,8 @@ export default function ReviewPage() {
 
     const better = await findBetterSentence(card);
     if (!better) {
-      // Said plainly rather than silently doing nothing. The corpus simply
-      // does not contain a cleaner sentence for this word yet — reading more
-      // is what changes that.
+      // Say so rather than doing nothing: there is no cleaner sentence in the
+      // corpus yet.
       setRerollState('none');
       return;
     }
@@ -132,6 +138,7 @@ export default function ReviewPage() {
     );
     setRerollState('idle');
     setRevealed(false);
+    setHinted(false);
     shownAt.current = Date.now();
   }, [card]);
 
@@ -153,7 +160,13 @@ export default function ReviewPage() {
     return (
       <Page title="Review">
         <p className={`type-en ${muted}`}>Nothing due.</p>
-        <ReviewAhead onStart={() => setAhead(true)} />
+        <ReviewAhead
+          onStart={() => {
+            setAhead(true);
+            setQueue(null);
+            setDeal((n) => n + 1);
+          }}
+        />
       </Page>
     );
   }
@@ -165,6 +178,7 @@ export default function ReviewPage() {
         onAgain={() => {
           setAhead(true);
           setQueue(null);
+          setDeal((n) => n + 1);
         }}
       />
     );
@@ -191,16 +205,8 @@ export default function ReviewPage() {
 }
 
 /**
- * What happened, and when to come back. No score, no streak, no praise — the
- * work was the point, and a number that rewards you for it would start
- * competing with the reading.
- */
-/**
- * Which kind of question this session asks.
- *
- * Asked every time rather than remembered. The two are different exercises —
- * one reads, one recalls — and which you want depends on the ten minutes you
- * are about to spend, not on what you picked last week.
+ * Which kind of question this session asks. Asked every time rather than
+ * remembered: the two are different exercises.
  */
 function StylePicker({ onPick }: { onPick: (style: SessionStyle) => void }) {
   const option =
@@ -222,10 +228,8 @@ function StylePicker({ onPick }: { onPick: (style: SessionStyle) => void }) {
 }
 
 /**
- * Going on past what was due.
- *
- * Offered, never automatic. Grading a card early shortens the interval it
- * earns, so this is a real cost and the reader should be the one to accept it.
+ * Going on past what was due. Offered, never automatic: grading early
+ * shortens the interval a card earns.
  */
 function ReviewAhead({ onStart }: { onStart: () => void }) {
   return (
@@ -248,8 +252,8 @@ function Summary({ reviewed, onAgain }: { reviewed: number; onAgain: () => void 
   const next = useLiveQuery(async () => {
     const soonest = await db.words.orderBy('dueAt').first();
     if (!soonest) return null;
-    // Compared against the clock here, inside the query, rather than during
-    // render: the answer must not change just because React re-rendered.
+    // Compared against the clock inside the query, so the answer does not
+    // change on a re-render.
     return { at: soonest.dueAt, overdue: soonest.dueAt <= Date.now() };
   }, []);
 

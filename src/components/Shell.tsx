@@ -9,10 +9,7 @@ const NAV = [
   { to: '/settings', label: 'Settings' },
 ];
 
-/**
- * Chrome for every route except the reader. The reading view mounts outside
- * this shell on purpose: while reading there is text and nothing else.
- */
+/** Chrome for every route except the reader, which mounts outside it. */
 export default function Shell() {
   return (
     <div className="min-h-full bg-paper text-ink dark:bg-lamp dark:text-lamp-ink">

@@ -3,10 +3,9 @@ import tailwindcss from '@tailwindcss/vite';
 import path from 'node:path';
 
 /**
- * The popup: an ordinary HTML entry, ES modules, nothing special.
- *
- * The content script is built separately (vite.content.config.ts) because a
- * script injected into a page cannot be a module.
+ * The popup: an ordinary HTML entry, ES modules. The content script is built
+ * separately (vite.content.config.ts) because an injected script cannot be a
+ * module.
  */
 export default defineConfig({
   // The popup restates none of the palette: it imports the app's stylesheet,
@@ -20,9 +19,8 @@ export default defineConfig({
     },
   },
   resolve: {
-    // The lemma cascade and the dictionary are the app's, imported rather than
-    // copied: a second copy would drift, and the whole point is that a captured
-    // document is lemmatised exactly as an imported one.
+    // The lemma cascade and the dictionary come from the app rather than being
+    // copied here — a second copy would drift.
     alias: {
       '@app': path.resolve(import.meta.dirname, '../src'),
       // The shared modules import each other through the app's own alias.

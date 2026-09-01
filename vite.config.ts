@@ -23,6 +23,9 @@ export default defineConfig({
         navigateFallback: 'index.html',
         // The seed and the font files are comfortably over the 2 MiB default.
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+        // The share target: a POST cannot be answered by a page, so the worker
+        // answers it. See public/share-target.js.
+        importScripts: ['share-target.js'],
       },
       manifest: {
         name: 'Blatt',
@@ -33,6 +36,17 @@ export default defineConfig({
         display: 'standalone',
         orientation: 'portrait',
         start_url: '/',
+        // Blatt appears in the phone's share sheet for a captured bundle:
+        // Drive → Share → Blatt, and it is imported and open. The POST is
+        // caught by the worker, which redirects to /import.
+        share_target: {
+          action: '/share-target',
+          method: 'POST',
+          enctype: 'multipart/form-data',
+          params: {
+            files: [{ name: 'file', accept: ['application/json', '.json'] }],
+          },
+        },
         icons: [
           { src: 'favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
