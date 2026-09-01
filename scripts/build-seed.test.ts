@@ -10,15 +10,14 @@
  * Run by hand, not in CI. Both caches are on disk, so a re-run costs Wikimedia
  * nothing for anything it has already asked about.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { it } from 'vitest';
-import type { FormLookup, FormResolver } from '@/lib/lemma/cascade';
 import { lemmatize } from '@/lib/lemma/cascade';
 import { tokenize, uniqueTokens } from '@/lib/lemma/tokenize';
 import type { LemmaCandidate } from '@/lib/lemma/types';
-import { lookupForm } from '@/lib/lemma/wiktionary';
 import { fetchDefinitions } from '@/lib/dict';
 import { locate } from '@/lib/segment';
+import { FLUSH_EVERY, diskCache, diskResolver, fetchPage, politeFetch, pool } from './lib/harvest';
 import {
   ALIGNMENT,
   DE_TITLE,
@@ -31,125 +30,8 @@ import {
 
 const CACHE_DIR = 'scripts/.seed-cache';
 const OUT = 'public/seed.json';
-const UA = 'Blatt/0.1 (local-first German reading app; personal project)';
 
-/** Wikimedia rate-limits this hard enough to matter. Be patient, not clever. */
-const CONCURRENCY = 4;
-
-/**
- * Minimum gap between requests to Wikimedia.
- *
- * Generous on purpose. The definition endpoint tolerates a short burst and
- * then starts refusing for minutes at a time, so the whole run is paced to
- * what it will sustain rather than to what it will briefly allow.
- */
-const GAP_MS = 250;
-
-/** How often the on-disk caches are flushed, in items. */
-const FLUSH_EVERY = 25;
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-/**
- * Every request out of this script goes through here.
- *
- * Two things the browser gives the app for free and Node does not. First a
- * real `User-Agent`: Wikimedia answers 429 to anything without one, which the
- * app code reads as "no such word" and quietly degrades — the first run of
- * this script produced a seed with five definitions in it before that was
- * understood. Second, one request at a time with a gap, and a real backoff
- * when the rate limiter does object.
- *
- * Patching the global keeps the app's own fetch calls untouched: the lemma
- * cascade and the dictionary here are exactly the code that runs in the
- * browser, which is the point — the shipped map must be the map a reader
- * would have built themselves.
- */
-function politeFetch() {
-  const real = globalThis.fetch;
-  let queue: Promise<unknown> = Promise.resolve();
-
-  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
-    const run = async () => {
-      for (let attempt = 0; attempt < 9; attempt++) {
-        const response = await real(input, {
-          ...init,
-          headers: { ...(init?.headers as Record<string, string>), 'User-Agent': UA },
-        });
-        if (response.status !== 429 && response.status !== 503) return response;
-
-        // Believe the server if it says how long to wait. Its number is the
-        // real one; ours is a guess that has already been wrong once.
-        const retryAfter = Number(response.headers.get('retry-after'));
-        const backoff = Number.isFinite(retryAfter) && retryAfter > 0
-          ? retryAfter * 1000
-          : Math.min(120_000, 1000 * 2 ** attempt);
-        console.log(`rate limited, waiting ${Math.round(backoff / 1000)}s`);
-        await sleep(backoff);
-      }
-      throw new Error('rate-limited after nine attempts');
-    };
-
-    const result = queue.then(run);
-    queue = result.then(() => sleep(GAP_MS), () => sleep(GAP_MS));
-    return result;
-  }) as typeof fetch;
-}
-
-function cached<T>(name: string, fallback: T): T {
-  const path = `${CACHE_DIR}/${name}`;
-  if (!existsSync(path)) return fallback;
-  return JSON.parse(readFileSync(path, 'utf8')) as T;
-}
-
-function writeCache(name: string, value: unknown) {
-  mkdirSync(CACHE_DIR, { recursive: true });
-  writeFileSync(`${CACHE_DIR}/${name}`, JSON.stringify(value), 'utf8');
-}
-
-/** Strip a Wikisource HTML page down to its prose paragraphs. */
-function paragraphsFrom(html: string): string[] {
-  const body = html
-    .replace(/<style[\s\S]*?<\/style>/g, '')
-    .replace(/<script[\s\S]*?<\/script>/g, '')
-    .replace(/<sup[\s\S]*?<\/sup>/g, '')
-    .replace(/<table[\s\S]*?<\/table>/g, '')
-    .replace(/<h[1-6][\s\S]*?<\/h[1-6]>/g, '');
-
-  return [...body.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/g)]
-    .map(([, inner]) =>
-      inner
-        .replace(/<[^>]+>/g, '')
-        .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(Number(d)))
-        .replace(/&amp;/g, '&')
-        .replace(/&quot;/g, '"')
-        .replace(/&nbsp;/g, ' ')
-        // Wikisource carries soft hyphens and page-join zero-width spaces.
-        .replace(/[­​]/g, '')
-        .replace(/\s+/g, ' ')
-        .trim(),
-    )
-    .filter((p) => p.length > 40);
-}
-
-async function fetchPage(host: string, title: string, cacheName: string): Promise<string[]> {
-  const hit = cached<string[] | null>(cacheName, null);
-  if (hit) return hit;
-
-  const url = `https://${host}/api/rest_v1/page/html/${encodeURIComponent(title)}`;
-  for (let attempt = 0; attempt < 6; attempt++) {
-    const response = await fetch(url, { headers: { 'User-Agent': UA } });
-    if (response.status === 429) {
-      await sleep(4000 * (attempt + 1));
-      continue;
-    }
-    if (!response.ok) throw new Error(`${host} ${response.status}`);
-    const paragraphs = paragraphsFrom(await response.text());
-    writeCache(cacheName, paragraphs);
-    return paragraphs;
-  }
-  throw new Error(`${host} rate-limited`);
-}
+const cache = diskCache(CACHE_DIR);
 
 /** Cut Hunt's long paragraphs where the German breaks. */
 function applySplits(paragraphs: string[]): string[] {
@@ -162,42 +44,6 @@ function applySplits(paragraphs: string[]): string[] {
     out.splice(paragraph, 1, text.slice(0, index).trim(), text.slice(index).trim());
   }
   return out;
-}
-
-/** A resolver backed by a disk cache, standing in for the app's Dexie one. */
-function diskResolver(): { resolve: FormResolver; save: () => void } {
-  const cache = cached<Record<string, FormLookup | null>>('forms.json', {});
-  let since = 0;
-  const save = () => writeCache('forms.json', cache);
-
-  return {
-    resolve: async (surface) => {
-      if (surface in cache) return cache[surface];
-      const looked = await lookupForm(surface);
-      cache[surface] = looked;
-      // Flushed as it goes. A run that dies an hour in must not throw away an
-      // hour of Wikimedia's time along with its own.
-      if (++since >= FLUSH_EVERY) {
-        since = 0;
-        save();
-      }
-      return looked;
-    },
-    save,
-  };
-}
-
-/** Run `worker` over `items`, a few at a time. */
-async function pool<T>(items: T[], worker: (item: T, index: number) => Promise<void>) {
-  let next = 0;
-  await Promise.all(
-    Array.from({ length: Math.min(CONCURRENCY, items.length) }, async () => {
-      while (next < items.length) {
-        const index = next++;
-        await worker(items[index], index);
-      }
-    }),
-  );
 }
 
 /**
@@ -254,8 +100,8 @@ function pickSeedWords(
 it('builds public/seed.json', async () => {
   politeFetch();
 
-  const de = await fetchPage('de.wikisource.org', DE_TITLE, 'de.json');
-  const en = applySplits(await fetchPage('en.wikisource.org', EN_TITLE, 'en.json'));
+  const de = await fetchPage('de.wikisource.org', DE_TITLE, 'de.json', cache);
+  const en = applySplits(await fetchPage('en.wikisource.org', EN_TITLE, 'en.json', cache));
   console.log(`source paragraphs: ${de.length} German, ${en.length} English after splits`);
 
   const pairs = ALIGNMENT.map(({ de: dei, en: eni }) => {
@@ -277,7 +123,7 @@ it('builds public/seed.json', async () => {
     }
   }
 
-  const { resolve, save } = diskResolver();
+  const { resolve, save } = diskResolver(cache);
   const lemmaMap: Record<string, LemmaCandidate[]> = {};
   let done = 0;
 
@@ -298,7 +144,7 @@ it('builds public/seed.json', async () => {
     ),
   ];
 
-  const defCache = cached<Record<string, string[]>>('definitions.json', {});
+  const defCache = cache.read<Record<string, string[]>>('definitions.json', {});
   let fetched = 0;
   let failed = 0;
 
@@ -316,12 +162,12 @@ it('builds public/seed.json', async () => {
         failed++;
       }
       if (++fetched % FLUSH_EVERY === 0) {
-        writeCache('definitions.json', defCache);
+        cache.write('definitions.json', defCache);
         console.log(`definitions ${fetched}/${lemmas.length}`);
       }
     });
   } finally {
-    writeCache('definitions.json', defCache);
+    cache.write('definitions.json', defCache);
   }
   if (failed > 0) console.log(`${failed} definitions could not be fetched; re-run to retry`);
 
