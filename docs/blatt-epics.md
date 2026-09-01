@@ -217,11 +217,40 @@ app's lemma engine rather than copying it.
   through the existing path. Different origins cannot share an IndexedDB; the
   proper fix is an offscreen document, not a backend, and not yet.
 - **8.6** Double-click a word to save it, marked with the same graphite rule.
-  Saved words ride along in the same file.
+  Saved words ride along in the same file. A word saved twice in the same
+  place is one word (`wordKey` in the extension's `bundle.ts`), a click on a
+  mark takes it back out, and the marks are redrawn when the script is
+  injected into a page that already has saves on it — otherwise a reload
+  leaves the reader looking at a page with no sign of the work they did.
 - **8.7** One icon, one popup: detected language, paragraph count, a button,
   progress. No options page.
 - **8.8** Failure states named plainly: no Translator API, model downloading,
   no article found, page not German.
+
+### 8.9 — The handoff, on a phone
+
+The laptop captures and the phone reads, so the file has to cross. It does
+that without a backend:
+
+- The extension's download folder is a synced folder — Drive, Dropbox — so the
+  bundle is on the phone within seconds of being written.
+- Blatt declares a **Web Share Target** (`share_target` in the PWA manifest),
+  so it appears in the phone's share sheet for a JSON file. Drive → Share →
+  Blatt, and the text opens.
+
+A share target is a `POST`, and a page cannot answer one, so the service
+worker does: `public/share-target.js` is imported into the generated Workbox
+worker, parks the file's text in a `blatt-share` cache, and redirects to
+`/import?shared=1`. `ImportPage` takes it out again — destructively, so a
+reload cannot import it twice — runs it through the existing `parseBackup` /
+`importBackup`, and since a capture is exactly one text, opens it.
+
+This is not a sync service and does not want to become one. Nothing is
+uploaded by Blatt, there is no account, and the only thing crossing the gap is
+a file the reader can see and move themselves. Android only: iOS Safari has no
+Web Share Target, and there the route stays Settings → Restore from a file.
+Android reads `share_target` at install time, so the PWA has to be reinstalled
+on the phone before Blatt appears in the sheet.
 
 ### What the API actually requires
 
