@@ -105,6 +105,7 @@ it('builds public/library', async () => {
 
   try {
     const built: BuiltText[] = [];
+    const skipped: string[] = [];
 
     for (const text of TEXTS) {
       const out = `${OUT_DIR}/${text.slug}.json`;
@@ -112,6 +113,17 @@ it('builds public/library', async () => {
         // Already built and committed. Delete the file to rebuild one text.
         built.push(JSON.parse(readFileSync(out, 'utf8')) as BuiltText);
         console.log(`${text.slug}: already built, skipping`);
+        continue;
+      }
+
+      // The English may have been made outside this script and dropped into
+      // the cache — see npm run library:german. Without it, and without
+      // credentials to make it here, the text is skipped rather than failing
+      // the build: a library of four finished tales is worth shipping.
+      const translated = existsSync(`${CACHE_DIR}/${text.slug}.en.json`);
+      if (!translated && !process.env.ANTHROPIC_API_KEY) {
+        console.log(`${text.slug}: no English cached and no API key, skipping`);
+        skipped.push(text.slug);
         continue;
       }
 
@@ -174,6 +186,8 @@ it('builds public/library', async () => {
       words: one.pairs.reduce((sum, pair) => sum + pair.de.split(/\s+/).length, 0),
     }));
     writeFileSync(`${OUT_DIR}/index.json`, JSON.stringify(index), 'utf8');
+
+    if (skipped.length > 0) console.log(`not built: ${skipped.join(', ')}`);
 
     const kb = (path: string) => Math.round(readFileSync(path).length / 1024);
     const texts = index.reduce((sum, one) => sum + kb(`${OUT_DIR}/${one.slug}.json`), 0);

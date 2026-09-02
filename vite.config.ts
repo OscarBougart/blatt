@@ -67,7 +67,9 @@ export default defineConfig({
     // The capture extension shares the app's lemma engine and its export
     // format, so its tests belong to the same run: a change here that breaks
     // the handoff should fail `npm test`, not be discovered in Chrome.
-    include: ['src/**/*.test.ts', 'extension/src/**/*.test.ts'],
+    // scripts/lib only — never scripts/*.test.ts, which are the build
+    // scripts themselves and go to the network.
+    include: ['src/**/*.test.ts', 'extension/src/**/*.test.ts', 'scripts/lib/**/*.test.ts'],
   },
   resolve: {
     alias: {

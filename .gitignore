@@ -30,6 +30,7 @@ lemma-report.txt
 scripts/.story-cache.txt
 scripts/.form-cache.json
 scripts/.seed-cache/
+scripts/.library-cache/
 
 .vercel
 .vercel

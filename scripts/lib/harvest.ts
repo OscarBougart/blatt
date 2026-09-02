@@ -80,8 +80,29 @@ export function diskCache(dir: string) {
 
 export type DiskCache = ReturnType<typeof diskCache>;
 
-/** Strip a Wikisource HTML page down to its prose paragraphs. */
-export function paragraphsFrom(html: string): string[] {
+/**
+ * How short a block may be and still count as prose.
+ *
+ * The seed was built at 40, which is safe for narration and wrong for
+ * dialogue: it silently deleted „Heißest du Rumpelstilzchen?“ — the line the
+ * entire tale turns on — along with the page furniture it was aimed at. The
+ * library uses a low bound and leans on the letter test instead.
+ *
+ * The default stays 40 so that build-seed keeps producing the same paragraph
+ * list. Its alignment table is written by hand against those indices, and a
+ * block appearing or vanishing would silently shift every pairing after it.
+ */
+export const PROSE_MIN = 40;
+export const DIALOGUE_MIN = 10;
+
+/**
+ * Strip a Wikisource HTML page down to its prose paragraphs.
+ *
+ * Page markers — the `[282]` a scan leaves where a page turned — are removed
+ * wherever they fall. They were being shipped inside the German, mid-sentence,
+ * in every text including the demo.
+ */
+export function paragraphsFrom(html: string, minLength = PROSE_MIN): string[] {
   const body = html
     .replace(/<style[\s\S]*?<\/style>/g, '')
     .replace(/<script[\s\S]*?<\/script>/g, '')
@@ -99,10 +120,13 @@ export function paragraphsFrom(html: string): string[] {
         .replace(/&nbsp;/g, ' ')
         // Wikisource carries soft hyphens and page-join zero-width spaces.
         .replace(/[­​]/g, '')
+        // The page number a scan leaves behind where a page turned.
+        .replace(/\[\d+\]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim(),
     )
-    .filter((p) => p.length > 40);
+    // A block with no letters in it is furniture, whatever its length.
+    .filter((p) => p.length >= minLength && /\p{L}/u.test(p));
 }
 
 /** One Wikisource page, as paragraphs, cached on disk under `cacheName`. */
@@ -111,6 +135,7 @@ export async function fetchPage(
   title: string,
   cacheName: string,
   cache: DiskCache,
+  minLength = PROSE_MIN,
 ): Promise<string[]> {
   const hit = cache.read<string[] | null>(cacheName, null);
   if (hit) return hit;
@@ -123,7 +148,7 @@ export async function fetchPage(
       continue;
     }
     if (!response.ok) throw new Error(`${host} ${response.status} for "${title}"`);
-    const paragraphs = paragraphsFrom(await response.text());
+    const paragraphs = paragraphsFrom(await response.text(), minLength);
     cache.write(cacheName, paragraphs);
     return paragraphs;
   }
