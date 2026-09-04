@@ -8,6 +8,24 @@ No backend, no accounts, no sync. Everything lives in IndexedDB on the device.
 The only network call the app ever makes is to Wiktionary, when a document is
 imported.
 
+<!--
+  Screenshots. Drop the files in docs/screenshots/ and delete this comment to
+  publish them. Three shots, in this order, because they tell the story in the
+  order a reader meets it:
+
+    reader-de.png   a paragraph of German, mid-text, no chrome
+    reader-en.png   the same paragraph flipped — the point of the whole app,
+                    and only legible next to the shot above
+    review.png      a card, showing the sentence it came from
+
+  Take them at phone width on a real device. The design is a phone design and
+  a desktop screenshot of it looks like an empty column.
+
+![Reading in German](docs/screenshots/reader-de.png)
+![The same paragraph, flipped](docs/screenshots/reader-en.png)
+![A card, with the sentence it came from](docs/screenshots/review.png)
+-->
+
 ## What makes it different
 
 Blatt is a sentence-mining tool where the mining is free.
@@ -139,6 +157,26 @@ id and never overwrites what is already there.
 
 ## Sources and licences
 
-Text: Kinder- und Hausmärchen (1857) and Margaret Hunt's 1884 translation, both
-public domain, from Wikisource. Definitions: English Wiktionary, CC BY-SA 3.0.
+Code: MIT, see `LICENSE`.
+
+German text: Kinder- und Hausmärchen (1857), public domain, from Wikisource.
+
+English text comes from two different places, and the difference matters:
+
+- **The demo document** (*Der Froschkönig*) uses Margaret Hunt's 1884
+  translation, public domain, from Wikisource.
+- **The twelve library tales** are machine translations, produced at build time
+  by Claude Opus 5 (`scripts/lib/translate-de.ts`) and committed to
+  `public/library/`. Hunt's versions exist for most of these, but hers is a
+  Victorian register that reads as a second unfamiliar language to a learner
+  working in modern German. These translations aim at the plain contemporary
+  English a reader actually wants on the other side of the flip.
+
+  They are not a scholarly text and have not been reviewed by a human
+  translator. They are good enough to check a sentence you have already
+  worked at, which is all the flip is for. If one is wrong, it is wrong in
+  the ordinary way machine translation is wrong, and the German is the
+  authority.
+
+Definitions: English Wiktionary, CC BY-SA 3.0.
 Type: [Newsreader](https://fonts.google.com/specimen/Newsreader), OFL.

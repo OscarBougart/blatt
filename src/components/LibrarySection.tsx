@@ -55,6 +55,10 @@ export default function LibrarySection() {
         Tales from the Brothers Grimm, ready to read. Nothing is downloaded when you tap —
         it is already here.
       </p>
+      <p className={`type-en mt-2 ${muted}`}>
+        The German is the 1857 original. The English is machine translated, so trust the
+        German where they disagree.
+      </p>
 
       <ul className="mt-4">
         {entries.map((entry) => {
