@@ -2,12 +2,11 @@ import { describe, expect, it } from 'vitest';
 import type { SavedWord } from '@/db/types';
 import {
   DEFAULT_NEW_PER_DAY,
-  aheadSession,
   MAX_NEW_PER_DAY,
   MIN_NEW_PER_DAY,
   clampNewPerDay,
-  composeSession,
   introducedToday,
+  reviewSession,
   isCard,
   isWaiting,
   startOfDay,
@@ -43,8 +42,6 @@ const card = (i: number, extra: Partial<SavedWord> = {}) =>
 /** A saved word still waiting in the queue. */
 const waiting = (i: number, extra: Partial<SavedWord> = {}) =>
   word({ id: `n${i}`, introducedAt: undefined, createdAt: NOW - i * 1000, ...extra });
-
-const noShuffle = () => 0;
 
 describe('clampNewPerDay', () => {
   it('holds the range', () => {
@@ -91,108 +88,77 @@ describe('introducedToday', () => {
   });
 });
 
-describe('composeSession', () => {
-  it('takes everything due and tops up with new words', () => {
-    const words = [card(1), card(2), waiting(1), waiting(2), waiting(3)];
-    const { due, fresh } = composeSession(words, { newPerDay: 8, now: NOW, random: noShuffle });
-    expect(due).toHaveLength(2);
-    expect(fresh).toHaveLength(3);
+describe('reviewSession', () => {
+  it('fills the round to the limit', () => {
+    const words = [card(1), card(2), card(3), card(4), card(5), card(6)];
+    const { cards, fresh } = reviewSession(words, { limit: 5, newPerDay: 8, now: NOW });
+
+    expect(cards).toHaveLength(5);
+    expect(fresh).toHaveLength(0);
   });
 
-  it('never introduces more than the daily limit', () => {
-    const words = Array.from({ length: 30 }, (_, i) => waiting(i));
-    const { fresh } = composeSession(words, { newPerDay: 5, now: NOW, random: noShuffle });
-    expect(fresh).toHaveLength(5);
-  });
-
-  it('counts what was already introduced today against the limit', () => {
+  it('draws soonest due first, so hard words come round more often', () => {
     const words = [
-      ...Array.from({ length: 6 }, (_, i) => card(i, { introducedAt: NOW - 1000 })),
-      ...Array.from({ length: 10 }, (_, i) => waiting(i)),
+      card(1, { id: 'far', dueAt: NOW + 30 * DAY }),
+      card(2, { id: 'soon', dueAt: NOW + DAY }),
+      card(3, { id: 'sooner', dueAt: NOW - DAY }),
     ];
-    // Six of today's eight are spent, so two remain.
-    const { fresh } = composeSession(words, { newPerDay: 8, now: NOW, random: noShuffle });
+    const { cards } = reviewSession(words, { limit: 2, newPerDay: 0, now: NOW });
+
+    expect(cards.map((w) => w.id)).toEqual(['sooner', 'soon']);
+  });
+
+  it('deals cards that are not due yet rather than an empty round', () => {
+    const words = [card(1, { dueAt: NOW + 30 * DAY }), card(2, { dueAt: NOW + 60 * DAY })];
+    const { cards } = reviewSession(words, { limit: 5, newPerDay: 0, now: NOW });
+
+    expect(cards).toHaveLength(2);
+  });
+
+  it('introduces new words oldest first', () => {
+    const words = [waiting(1), waiting(2), waiting(3)];
+    const { fresh } = reviewSession(words, { limit: 10, newPerDay: 8, now: NOW });
+
+    // `waiting(i)` is created i seconds ago, so the higher index is the older.
+    expect(fresh.map((w) => w.id)).toEqual(['n3', 'n2', 'n1']);
+  });
+
+  it('gives new words at most half the round', () => {
+    const words = [
+      waiting(1),
+      waiting(2),
+      waiting(3),
+      waiting(4),
+      waiting(5),
+      waiting(6),
+      card(1),
+      card(2),
+      card(3),
+    ];
+    const { cards, fresh } = reviewSession(words, { limit: 6, newPerDay: 20, now: NOW });
+
+    expect(fresh).toHaveLength(3);
+    expect(cards).toHaveLength(3);
+  });
+
+  it('spends the daily allowance on new words, not the round limit', () => {
+    const words = [waiting(1), waiting(2), waiting(3), waiting(4)];
+    const introducedAlready = [card(1, { introducedAt: NOW - 1000 })];
+    const { fresh } = reviewSession([...words, ...introducedAlready], {
+      limit: 10,
+      newPerDay: 3,
+      now: NOW,
+    });
+
+    // Three a day, one already introduced today: two left.
     expect(fresh).toHaveLength(2);
   });
 
-  it('lets the backlog crowd out new words entirely', () => {
-    // Falling behind is what ends the habit, so due cards outrank appetite.
-    const words = [
-      ...Array.from({ length: 25 }, (_, i) => card(i)),
-      ...Array.from({ length: 5 }, (_, i) => waiting(i)),
-    ];
-    const { due, fresh } = composeSession(words, { newPerDay: 8, now: NOW, random: noShuffle });
-    expect(due).toHaveLength(20);
+  it('leaves suspended words out entirely', () => {
+    const words = [card(1, { suspended: true }), waiting(2, { suspended: true })];
+    const { cards, fresh } = reviewSession(words, { limit: 5, newPerDay: 8, now: NOW });
+
+    expect(cards).toHaveLength(0);
     expect(fresh).toHaveLength(0);
-  });
-
-  it('never exceeds the session cap in total', () => {
-    const words = [
-      ...Array.from({ length: 15 }, (_, i) => card(i)),
-      ...Array.from({ length: 20 }, (_, i) => waiting(i)),
-    ];
-    const { due, fresh } = composeSession(words, { newPerDay: 20, now: NOW, random: noShuffle });
-    expect(due.length + fresh.length).toBe(20);
-  });
-
-  it('introduces the words that have waited longest', () => {
-    const words = [
-      waiting(1, { id: 'newest', createdAt: NOW }),
-      waiting(2, { id: 'oldest', createdAt: NOW - 30 * DAY }),
-      waiting(3, { id: 'middle', createdAt: NOW - 5 * DAY }),
-      waiting(4, { id: 'recent', createdAt: NOW - DAY }),
-    ];
-    const { fresh } = composeSession(words, { newPerDay: 3, now: NOW, random: noShuffle });
-    expect(fresh.map((w) => w.id)).toEqual(['oldest', 'middle', 'recent']);
-  });
-
-  it('holds the daily limit to its range', () => {
-    const words = Array.from({ length: 30 }, (_, i) => waiting(i));
-    // Below the floor and above the ceiling both get clamped, so a stored
-    // setting that has been tampered with cannot bury the reader or starve them.
-    expect(composeSession(words, { newPerDay: 1, now: NOW, random: noShuffle }).fresh)
-      .toHaveLength(MIN_NEW_PER_DAY);
-    expect(composeSession(words, { newPerDay: 500, now: NOW, random: noShuffle }).fresh)
-      .toHaveLength(MAX_NEW_PER_DAY);
-  });
-
-  it('leaves suspended words out of both halves', () => {
-    const words = [
-      card(1, { suspended: true }),
-      waiting(2, { suspended: true }),
-      card(3),
-    ];
-    const { due, fresh } = composeSession(words, { newPerDay: 8, now: NOW, random: noShuffle });
-    expect(due.map((w) => w.id)).toEqual(['c3']);
-    expect(fresh).toHaveLength(0);
-  });
-
-  it('does not schedule a card before it is due', () => {
-    const words = [card(1, { dueAt: NOW + DAY })];
-    const { due } = composeSession(words, { newPerDay: 8, now: NOW, random: noShuffle });
-    expect(due).toHaveLength(0);
-  });
-});
-
-describe('aheadSession', () => {
-  it('offers the cards closest to falling due', () => {
-    const words = [
-      card(1, { id: 'far', dueAt: NOW + 10 * DAY }),
-      card(2, { id: 'soon', dueAt: NOW + DAY }),
-      card(3, { id: 'sooner', dueAt: NOW + 1000 }),
-    ];
-    expect(aheadSession(words).map((w) => w.id)).toEqual(['sooner', 'soon', 'far']);
-  });
-
-  it('holds the session cap', () => {
-    const words = Array.from({ length: 40 }, (_, i) => card(i, { dueAt: NOW + i * DAY }));
-    expect(aheadSession(words)).toHaveLength(20);
-  });
-
-  it('leaves the queue and the suspended out of it', () => {
-    // Reviewing ahead means reviewing cards early, not conjuring new ones past
-    // the daily limit.
-    const words = [card(1), waiting(2), card(3, { suspended: true })];
-    expect(aheadSession(words).map((w) => w.id)).toEqual(['c1']);
   });
 });

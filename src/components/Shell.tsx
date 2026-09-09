@@ -6,7 +6,6 @@ const NAV = [
   { to: '/review', label: 'Review' },
   { to: '/import', label: 'Import' },
   { to: '/stats', label: 'Stats' },
-  { to: '/settings', label: 'Settings' },
 ];
 
 /** Chrome for every route except the reader, which mounts outside it. */

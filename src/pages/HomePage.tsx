@@ -1,15 +1,28 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { usePace } from '@/context/PaceContext';
 import DocRow from '@/components/DocRow';
 import Page from '@/components/Page';
 import { db } from '@/db/db';
 import { lastExportAt, shouldPromptBackup } from '@/lib/backup';
-import { composeSession } from '@/lib/queue';
+
+/** A gear. Drawn rather than typed, for the same reason as the back arrow. */
+function SettingsLink() {
+  return (
+    <Link
+      to="/settings"
+      aria-label="Settings"
+      className="-mr-3 flex h-12 w-12 items-center justify-center text-graphite dark:text-lamp-gph"
+    >
+      <svg viewBox="-1 -1 26 26" aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+      </svg>
+    </Link>
+  );
+}
 
 export default function HomePage() {
-  const { newPerDay } = usePace();
   const docs = useLiveQuery(() => db.docs.orderBy('createdAt').reverse().toArray(), []);
   const words = useLiveQuery(() => db.words.toArray(), [], []);
 
@@ -22,25 +35,6 @@ export default function HomePage() {
   }, [words]);
 
   const [editing, setEditing] = useState(false);
-
-  // What a session would actually contain, not how many words are past due —
-  // otherwise a fortnight of saving shows "400 due", the exact feeling the
-  // daily limit exists to prevent.
-  //
-  // Date.now() is read inside the query, not at mount: on a first launch the
-  // demo seed is still writing when this renders, so a mount-time clock is
-  // earlier than the moment its words fall due and the badge never appears.
-  const due = useLiveQuery(
-    async () => {
-      const { due: cards, fresh } = composeSession(await db.words.toArray(), {
-        newPerDay,
-        now: Date.now(),
-      });
-      return cards.length + fresh.length;
-    },
-    [newPerDay],
-    0,
-  );
 
   // A fortnight's threshold does not care about milliseconds, so this one can
   // safely be answered from the data as it arrives.
@@ -57,20 +51,10 @@ export default function HomePage() {
     );
   }, [], false);
 
-  if (docs === undefined) return <Page title="Blatt" />;
+  if (docs === undefined) return <Page title="Blatt" aside={<SettingsLink />} />;
 
   return (
-    <Page title="Blatt">
-      {/* A count, and only when it is not zero. */}
-      {due > 0 && (
-        <Link
-          to="/review"
-          className="type-en mb-6 flex min-h-12 items-center text-graphite dark:text-lamp-gph"
-        >
-          {due} due
-        </Link>
-      )}
-
+    <Page title="Blatt" aside={<SettingsLink />}>
       {promptBackup && (
         <Link
           to="/settings"

@@ -1,14 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SavedWord } from '@/db/types';
-import type { LemmaCandidate } from '@/lib/lemma/types';
-import {
-  filterWords,
-  lemmaConfidence,
-  matchesQuery,
-  needsAttention,
-  sortWords,
-  truncateSentence,
-} from './words';
+import { filterWords, matchesQuery, sortWords, truncateSentence } from './words';
 
 function makeWord(overrides: Partial<SavedWord> = {}): SavedWord {
   return {
@@ -29,9 +21,6 @@ function makeWord(overrides: Partial<SavedWord> = {}): SavedWord {
     ...overrides,
   };
 }
-
-const candidates = (...list: [string, number][]): LemmaCandidate[] =>
-  list.map(([lemma, confidence]) => ({ lemma, confidence, method: 'suffix' }));
 
 describe('matchesQuery', () => {
   it('matches the surface form', () => {
@@ -63,109 +52,35 @@ describe('matchesQuery', () => {
   });
 });
 
-describe('lemmaConfidence', () => {
-  it('finds the confidence of the lemma in use', () => {
-    expect(lemmaConfidence(makeWord(), candidates(['Haus', 0.95], ['Hause', 0.4]))).toBe(
-      0.95,
-    );
-  });
-
-  it('is null when the document knows nothing about it', () => {
-    expect(lemmaConfidence(makeWord(), undefined)).toBeNull();
-  });
-
-  it('is null for a hand-typed lemma not among the candidates', () => {
-    expect(lemmaConfidence(makeWord({ lemma: 'Eigenwort' }), candidates(['Haus', 0.9]))).toBeNull();
-  });
-});
-
-describe('needsAttention', () => {
-  it('flags a failed lookup', () => {
-    expect(needsAttention(makeWord({ lookupFailed: true }), candidates(['Haus', 1]))).toBe(
-      true,
-    );
-  });
-
-  it('flags an empty definition', () => {
-    expect(needsAttention(makeWord({ definition: '' }), candidates(['Haus', 1]))).toBe(true);
-  });
-
-  it('does not flag an empty definition the reader has annotated', () => {
-    expect(
-      needsAttention(makeWord({ definition: '', note: 'my own gloss' }), candidates(['Haus', 1])),
-    ).toBe(false);
-  });
-
-  it('flags a low-confidence lemma', () => {
-    expect(needsAttention(makeWord(), candidates(['Haus', 0.5]))).toBe(true);
-  });
-
-  it('leaves a confident, defined word alone', () => {
-    expect(needsAttention(makeWord(), candidates(['Haus', 0.95]))).toBe(false);
-  });
-
-  it('does not flag a hand-typed lemma just because it is unknown', () => {
-    expect(needsAttention(makeWord({ lemma: 'Eigenwort' }), candidates(['Haus', 0.9]))).toBe(
-      false,
-    );
-  });
-});
-
 describe('filterWords', () => {
   const words = [
     makeWord({ id: 'a', docId: 'doc1', surface: 'Haus' }),
     makeWord({ id: 'b', docId: 'doc2', surface: 'Baum', lemma: 'Baum', definition: 'tree' }),
     makeWord({ id: 'c', docId: 'doc1', surface: 'Katze', lemma: 'Katze', definition: '' }),
   ];
-  const none = () => undefined;
 
   it('filters by document', () => {
-    const result = filterWords(words, { query: '', docId: 'doc1', needsAttention: false }, none);
-    expect(result.map((w) => w.id)).toEqual(['a', 'c']);
+    expect(filterWords(words, { query: '', docId: 'doc1' }).map((w) => w.id)).toEqual(['a', 'c']);
   });
 
   it('filters by query', () => {
-    const result = filterWords(words, { query: 'tree', docId: 'all', needsAttention: false }, none);
-    expect(result.map((w) => w.id)).toEqual(['b']);
+    expect(filterWords(words, { query: 'tree', docId: 'all' }).map((w) => w.id)).toEqual(['b']);
   });
 
-  it('filters to words needing attention', () => {
-    const result = filterWords(words, { query: '', docId: 'all', needsAttention: true }, none);
-    expect(result.map((w) => w.id)).toEqual(['c']);
-  });
-
-  it('combines filters', () => {
-    const result = filterWords(
-      words,
-      { query: 'katze', docId: 'doc1', needsAttention: true },
-      none,
-    );
-    expect(result.map((w) => w.id)).toEqual(['c']);
+  it('combines document and query', () => {
+    expect(filterWords(words, { query: 'katze', docId: 'doc1' }).map((w) => w.id)).toEqual(['c']);
   });
 });
 
 describe('sortWords', () => {
-  it('sorts recent newest first', () => {
+  it('sorts newest first', () => {
     const words = [makeWord({ id: 'old', createdAt: 1 }), makeWord({ id: 'new', createdAt: 9 })];
-    expect(sortWords(words, 'recent').map((w) => w.id)).toEqual(['new', 'old']);
-  });
-
-  it('sorts overdue most-overdue first', () => {
-    const words = [
-      makeWord({ id: 'soon', dueAt: 900 }),
-      makeWord({ id: 'ancient', dueAt: 100 }),
-      makeWord({ id: 'future', dueAt: 5000 }),
-    ];
-    expect(sortWords(words, 'overdue', 1000).map((w) => w.id)).toEqual([
-      'ancient',
-      'soon',
-      'future',
-    ]);
+    expect(sortWords(words).map((w) => w.id)).toEqual(['new', 'old']);
   });
 
   it('does not mutate the input', () => {
     const words = [makeWord({ id: 'a', createdAt: 1 }), makeWord({ id: 'b', createdAt: 2 })];
-    sortWords(words, 'recent');
+    sortWords(words);
     expect(words.map((w) => w.id)).toEqual(['a', 'b']);
   });
 });

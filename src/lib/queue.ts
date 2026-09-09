@@ -1,14 +1,18 @@
 import type { SavedWord } from '@/db/types';
-import { dueWords, shuffle } from './srs';
 
 /**
  * What a review session is made of.
  *
  * Blatt took the friction out of saving a word, and with it the brake that
  * stops Anki users burying themselves. You can tap eighty words in one evening
- * here and drown a fortnight later, so the limit matters more than it does in
- * Anki, not less: a saved word is not a card until it is introduced, and only
- * a handful are introduced a day.
+ * here, so a saved word is not a card until it is introduced, and only a
+ * handful are introduced a day.
+ *
+ * Nothing here gates a session on a due date. A card's due date orders the
+ * deck — soonest first, so a word graded Hard comes back round sooner than one
+ * graded Easy — but it never withholds a card. The reader opens Review when
+ * they want to, and there is always something to review. This app does not set
+ * homework.
  *
  * All pure. The caller does the writing.
  */
@@ -18,8 +22,8 @@ export const DEFAULT_NEW_PER_DAY = 8;
 export const MIN_NEW_PER_DAY = 3;
 export const MAX_NEW_PER_DAY = 20;
 
-/** One sitting. Long enough to be worth doing, short enough to finish. */
-export const SESSION_CAP = 20;
+/** How much of a round may be words the reader has never seen. */
+const FRESH_SHARE = 0.5;
 
 export function clampNewPerDay(value: number): number {
   if (!Number.isFinite(value)) return DEFAULT_NEW_PER_DAY;
@@ -61,55 +65,45 @@ export function introducedToday(words: SavedWord[], now: number): number {
 export type SessionStyle = 'sentence' | 'word';
 
 export interface Session {
-  /** Cards already in review and due now. */
-  due: SavedWord[];
-  /** Words being introduced by this session. The caller stamps them. */
+  /** Cards already in review, soonest due first. */
+  cards: SavedWord[];
+  /** Words being introduced by this round. The caller stamps them. */
   fresh: SavedWord[];
 }
 
 /**
- * Compose a session: everything due, then new words up to what is left of
- * today's allowance, the whole thing capped.
+ * Draw a round of `limit` cards.
  *
- * Due cards come first and are never displaced. Falling behind on review is
- * the failure mode that ends the habit, so the backlog outranks the appetite
- * for new words — if twenty cards are due, today's new words wait.
+ * Soonest due first, which is the whole use the due date is put to: SM-2 books
+ * a card graded Hard back for tomorrow and one graded Easy for next month, so
+ * ordering by `dueAt` makes the hard words come round often and the easy ones
+ * rarely. Nothing is withheld for not being due yet — if the reader wants a
+ * fourth round tonight they get one, drawn from whatever is least well known.
+ *
+ * New words are still rationed. That limit is not homework: it is the brake on
+ * how fast the deck grows, and it takes at most half a round so a session is
+ * never all strangers.
  */
-export function composeSession(
+export function reviewSession(
   words: SavedWord[],
-  options: { newPerDay: number; now: number; cap?: number; random?: () => number },
+  options: { limit: number; newPerDay: number; now: number },
 ): Session {
-  const { newPerDay, now, cap = SESSION_CAP, random } = options;
-
-  const due = shuffle(dueWords(words.filter(isCard), now), random).slice(0, cap);
+  const { limit, newPerDay, now } = options;
 
   const allowance = Math.max(0, clampNewPerDay(newPerDay) - introducedToday(words, now));
-  const room = Math.max(0, cap - due.length);
+  const room = Math.min(allowance, Math.ceil(limit * FRESH_SHARE));
 
   // Oldest first: a word saved three weeks ago has waited longer, and the
   // sentence it came from is the one furthest from memory.
   const fresh = words
     .filter(isWaiting)
     .sort((a, b) => a.createdAt - b.createdAt)
-    .slice(0, Math.min(allowance, room));
+    .slice(0, room);
 
-  return { due, fresh };
-}
-
-/**
- * A session when nothing is due.
- *
- * Reviewing ahead is not free — grading a card early shortens the interval it
- * earns, because SM-2 measures from now rather than from when the card was
- * meant to come round. So it is never automatic and never the default: it is
- * offered on the empty screen, for the evening when you have finished and want
- * to keep going anyway, and the cost is yours to accept.
- *
- * Soonest-due first, since those are the cards closest to being forgotten.
- */
-export function aheadSession(words: SavedWord[], cap = SESSION_CAP): SavedWord[] {
-  return words
+  const cards = words
     .filter(isCard)
     .sort((a, b) => a.dueAt - b.dueAt)
-    .slice(0, cap);
+    .slice(0, limit - fresh.length);
+
+  return { cards, fresh };
 }

@@ -1,4 +1,4 @@
-import type { CardMode, SavedWord } from '@/db/types';
+import type { SavedWord } from '@/db/types';
 import { cloze } from '@/lib/cloze';
 import type { SessionStyle } from '@/lib/queue';
 import { GRADES, GRADE_LABEL, type Grade } from '@/lib/srs';
@@ -6,8 +6,6 @@ import { GRADES, GRADE_LABEL, type Grade } from '@/lib/srs';
 interface Props {
   word: SavedWord;
   docTitle: string;
-  /** The aligned English for the paragraph this sentence came from. */
-  translation: string;
   style: SessionStyle;
   revealed: boolean;
   /** The reader asked for a hint before answering. */
@@ -15,9 +13,6 @@ interface Props {
   onReveal: () => void;
   onHint: () => void;
   onGrade: (grade: Grade) => void;
-  onSetMode: (mode: CardMode) => void;
-  onReroll: () => void;
-  rerollState: 'idle' | 'searching' | 'none';
 }
 
 const rule = 'border-rule dark:border-lamp-gph/25';
@@ -39,51 +34,19 @@ function Slot({ word, revealed }: { word: string; revealed: boolean }) {
   return <span className={revealed ? answer : 'blank'}>{word}</span>;
 }
 
-/**
- * The sentence with the target at full strength and the rest receding. Not
- * bold: that would change the shape of the word being recognised.
- */
-function Marked({
-  sentence,
-  offset,
-  length,
-  revealed,
-}: {
-  sentence: string;
-  offset: number;
-  length: number;
-  revealed: boolean;
-}) {
-  if (offset < 0 || offset + length > sentence.length) return <>{sentence}</>;
-
-  return (
-    <>
-      <span className="opacity-85">{sentence.slice(0, offset)}</span>
-      <span className={revealed ? answer : undefined}>
-        {sentence.slice(offset, offset + length)}
-      </span>
-      <span className="opacity-85">{sentence.slice(offset + length)}</span>
-    </>
-  );
-}
-
 export default function ReviewCard({
   word,
   docTitle,
-  translation,
   style,
   revealed,
   hinted,
   onReveal,
   onHint,
   onGrade,
-  onSetMode,
-  onReroll,
-  rerollState,
 }: Props) {
-  const isCloze = word.cardMode === 'cloze';
   const wordOnly = style === 'word';
-  const { before, hidden, after } = cloze(word.sentence, word.surface, word.charOffset);
+  // Every occurrence is blanked: a front that shows the word is not a question.
+  const segments = cloze(word.sentence, word.surface);
   const definition = word.note?.trim() || word.definition;
 
   // A word card already shows the definition, so there is nothing to hint
@@ -107,27 +70,16 @@ export default function ReviewCard({
           </>
         ) : (
           <p className="type-de" lang="de">
-            {isCloze ? (
-              <>
-                {before}
-                {hidden && <Slot word={hidden} revealed={revealed} />}
-                {after}
-              </>
-            ) : (
-              <Marked
-                sentence={word.sentence}
-                offset={word.charOffset}
-                length={word.surface.length}
-                revealed={revealed}
-              />
+            {segments.map((segment, i) =>
+              segment.hidden ? (
+                // eslint-disable-next-line react/no-array-index-key
+                <Slot key={i} word={segment.text} revealed={revealed} />
+              ) : (
+                // eslint-disable-next-line react/no-array-index-key
+                <span key={i}>{segment.text}</span>
+              ),
             )}
           </p>
-        )}
-
-        {/* A cloze keeps the translation as a standing cue — a German sentence
-            with a hole in it is often genuinely ambiguous. */}
-        {isCloze && !revealed && translation && (
-          <p className={`type-en mt-4 ${muted}`}>{translation}</p>
         )}
 
         {/* The hint proper: what this one word means. */}
@@ -165,33 +117,7 @@ export default function ReviewCard({
             </>
           )}
 
-          {/* The aligned paragraph, already stored. */}
-          {translation && <p className={`type-en mt-4 ${muted}`}>{translation}</p>}
-
           <p className={`type-en mt-4 ${muted}`}>{docTitle}</p>
-
-          <div className={`mt-5 flex flex-wrap items-center gap-4 type-en ${muted}`}>
-            <button
-              type="button"
-              onClick={() => onSetMode(isCloze ? 'recognition' : 'cloze')}
-              className="min-h-12 underline underline-offset-4"
-            >
-              {isCloze ? 'Just recognise it' : 'Drill this actively'}
-            </button>
-
-            <button
-              type="button"
-              onClick={onReroll}
-              disabled={rerollState !== 'idle'}
-              className="min-h-12 underline underline-offset-4"
-            >
-              {rerollState === 'searching'
-                ? 'Looking…'
-                : rerollState === 'none'
-                  ? 'No better sentence'
-                  : 'Another sentence'}
-            </button>
-          </div>
         </div>
       ) : (
         <div className={`mt-8 flex gap-3 border-t pt-6 ${rule}`}>

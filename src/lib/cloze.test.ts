@@ -2,68 +2,53 @@ import { describe, expect, it } from 'vitest';
 import { cloze } from './cloze';
 
 describe('cloze', () => {
-  it('splits around the saved occurrence', () => {
-    expect(cloze('Ein Blatt fiel vom Baum.', 'Blatt', 4)).toEqual({
-      before: 'Ein ',
-      hidden: 'Blatt',
-      after: ' fiel vom Baum.',
-    });
+  it('blanks the word and keeps what surrounds it', () => {
+    expect(cloze('Ein Blatt fiel vom Baum.', 'Blatt')).toEqual([
+      { text: 'Ein ', hidden: false },
+      { text: 'Blatt', hidden: true },
+      { text: ' fiel vom Baum.', hidden: false },
+    ]);
   });
 
-  it('blanks the tapped occurrence, not the first', () => {
-    const sentence = 'Der Mann sah den Mann.';
-    expect(cloze(sentence, 'Mann', 17)).toEqual({
-      before: 'Der Mann sah den ',
-      hidden: 'Mann',
-      after: '.',
-    });
+  it('blanks every occurrence, or the others give the answer away', () => {
+    expect(cloze('Der Mann sah den Mann.', 'Mann')).toEqual([
+      { text: 'Der ', hidden: false },
+      { text: 'Mann', hidden: true },
+      { text: ' sah den ', hidden: false },
+      { text: 'Mann', hidden: true },
+      { text: '.', hidden: false },
+    ]);
   });
 
-  it('handles a word at the start', () => {
-    expect(cloze('Blatt fiel.', 'Blatt', 0)).toEqual({
-      before: '',
-      hidden: 'Blatt',
-      after: ' fiel.',
-    });
+  it('ignores case, so a sentence-initial occurrence is blanked too', () => {
+    expect(cloze('Blatt um blatt.', 'blatt')).toEqual([
+      { text: 'Blatt', hidden: true },
+      { text: ' um ', hidden: false },
+      { text: 'blatt', hidden: true },
+      { text: '.', hidden: false },
+    ]);
   });
 
-  it('handles a word at the end', () => {
-    expect(cloze('Das ist ein Blatt', 'Blatt', 12)).toEqual({
-      before: 'Das ist ein ',
-      hidden: 'Blatt',
-      after: '',
-    });
+  it('does not blank a match inside a longer word', () => {
+    expect(cloze('Der andere Weg.', 'der')).toEqual([
+      { text: 'Der', hidden: true },
+      { text: ' andere Weg.', hidden: false },
+    ]);
   });
 
-  it('falls back to the first occurrence when the offset is stale', () => {
-    expect(cloze('Ein Blatt fiel.', 'Blatt', 99)).toEqual({
-      before: 'Ein ',
-      hidden: 'Blatt',
-      after: ' fiel.',
-    });
-  });
-
-  it('falls back when the offset points at the wrong text', () => {
-    expect(cloze('Ein Blatt fiel.', 'Blatt', 0)).toEqual({
-      before: 'Ein ',
-      hidden: 'Blatt',
-      after: ' fiel.',
-    });
+  it('handles the word at either end', () => {
+    expect(cloze('Blatt fiel.', 'Blatt')).toEqual([
+      { text: 'Blatt', hidden: true },
+      { text: ' fiel.', hidden: false },
+    ]);
+    expect(cloze('Das ist ein Blatt', 'Blatt')).toEqual([
+      { text: 'Das ist ein ', hidden: false },
+      { text: 'Blatt', hidden: true },
+    ]);
   });
 
   it('leaves the sentence whole when the word is not in it', () => {
-    expect(cloze('Ein Blatt fiel.', 'Baum', 0)).toEqual({
-      before: 'Ein Blatt fiel.',
-      hidden: '',
-      after: '',
-    });
-  });
-
-  it('leaves the sentence whole when there is no surface form', () => {
-    expect(cloze('Ein Blatt fiel.', '', 0)).toEqual({
-      before: 'Ein Blatt fiel.',
-      hidden: '',
-      after: '',
-    });
+    expect(cloze('Ein Blatt fiel.', 'Baum')).toEqual([{ text: 'Ein Blatt fiel.', hidden: false }]);
+    expect(cloze('Ein Blatt fiel.', '')).toEqual([{ text: 'Ein Blatt fiel.', hidden: false }]);
   });
 });

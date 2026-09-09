@@ -9,6 +9,7 @@ import Shell from './components/Shell';
 import HomePage from './pages/HomePage';
 import ReaderPage from './pages/ReaderPage';
 import WordsPage from './pages/WordsPage';
+import WordDetailPage from './pages/WordDetailPage';
 import ReviewPage from './pages/ReviewPage';
 import ImportPage from './pages/ImportPage';
 import StatsPage from './pages/StatsPage';
@@ -32,6 +33,7 @@ export default function App() {
               <Route element={<Shell />}>
                 <Route path="/" element={<HomePage />} />
                 <Route path="/words" element={<WordsPage />} />
+                <Route path="/words/:wordId" element={<WordDetailPage />} />
                 <Route path="/review" element={<ReviewPage />} />
                 <Route path="/import" element={<ImportPage />} />
                 <Route path="/stats" element={<StatsPage />} />
