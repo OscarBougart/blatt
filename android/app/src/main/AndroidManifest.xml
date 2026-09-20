@@ -150,8 +150,6 @@
                     
                         <data android:mimeType="application/json" />
                     
-                        <data android:mimeType=".json" />
-                    
                 </intent-filter>
             
 

@@ -1,27 +1,42 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import BackupSection from '@/components/BackupSection';
 import PaceSection from '@/components/PaceSection';
 import Page from '@/components/Page';
-import { useTheme } from '@/context/ThemeContext';
+import { THEME_PREFERENCES, useTheme } from '@/context/ThemeContext';
 import { TYPE_SIZES, useTypeSize } from '@/context/TypeSizeContext';
 
+const THEME_LABELS = { light: 'Light', dark: 'Dark', system: 'System' } as const;
+
 export default function SettingsPage() {
-  const { theme, toggle } = useTheme();
+  const navigate = useNavigate();
+  const { preference, setPreference } = useTheme();
   const { size, setSize } = useTypeSize();
 
   return (
-    <Page title="Settings">
-      <button
-        type="button"
-        onClick={toggle}
-        aria-pressed={theme === 'dark'}
-        className="flex min-h-12 w-full items-center justify-between border-b border-rule text-left dark:border-lamp-gph/25"
-      >
-        <span>Dark</span>
-        <span className="type-en text-graphite dark:text-lamp-gph">
-          {theme === 'dark' ? 'On' : 'Off'}
-        </span>
-      </button>
+    <Page title="Settings" back={() => void navigate('/')}>
+      {/* Three states rather than a switch, because the useful third one is
+          neither: a phone that goes dark at dusk should take the app with it. */}
+      <div className="flex min-h-12 items-center justify-between border-b border-rule dark:border-lamp-gph/25">
+        <span>Theme</span>
+        <div className="flex gap-1">
+          {THEME_PREFERENCES.map((option) => (
+            <button
+              key={option}
+              type="button"
+              onClick={() => setPreference(option)}
+              aria-pressed={preference === option}
+              className={[
+                'type-en min-h-12 px-3',
+                preference === option
+                  ? 'text-ink dark:text-lamp-ink'
+                  : 'text-graphite dark:text-lamp-gph',
+              ].join(' ')}
+            >
+              {THEME_LABELS[option]}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Pinch-zoom is off in the reader so that double-tap can save a word.
           This gives the size control back. */}

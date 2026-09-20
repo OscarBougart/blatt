@@ -1,6 +1,5 @@
 import {
   createContext,
-  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -10,16 +9,28 @@ import {
 
 export type Theme = 'light' | 'dark';
 
-const KEY = 'blatt:theme';
+/** What the reader chose. `system` defers to the phone, now and from now on. */
+export type ThemePreference = Theme | 'system';
 
-export function readStoredTheme(): Theme {
+export const THEME_PREFERENCES = ['light', 'dark', 'system'] as const;
+
+const KEY = 'blatt:theme';
+const DARK = '(prefers-color-scheme: dark)';
+
+function systemTheme(): Theme {
+  return window.matchMedia(DARK).matches ? 'dark' : 'light';
+}
+
+export function readStoredPreference(): ThemePreference {
   try {
     const stored = localStorage.getItem(KEY);
-    if (stored === 'light' || stored === 'dark') return stored;
+    if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
   } catch {
     // Private mode, storage disabled. Fall through to the system preference.
   }
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  // Anything else — never set, or written by an older build — means follow the
+  // phone. The pre-paint script in index.html reads this key the same way.
+  return 'system';
 }
 
 function apply(theme: Theme) {
@@ -30,26 +41,47 @@ function apply(theme: Theme) {
 }
 
 interface ThemeState {
+  /** What is on screen. */
   theme: Theme;
-  toggle: () => void;
+  /** What was asked for, which may be `system`. */
+  preference: ThemePreference;
+  setPreference: (preference: ThemePreference) => void;
 }
 
 const ThemeContext = createContext<ThemeState | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(readStoredTheme);
+  const [preference, setPreference] = useState<ThemePreference>(readStoredPreference);
+  const [system, setSystem] = useState<Theme>(systemTheme);
+
+  // Watched always, not only while following it: a phone that turns dark at
+  // dusk while the app is open should not be remembered wrong if the reader
+  // switches back to `system` a moment later.
+  useEffect(() => {
+    const query = window.matchMedia(DARK);
+    const onChange = () => setSystem(query.matches ? 'dark' : 'light');
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }, []);
+
+  const theme: Theme = preference === 'system' ? system : preference;
 
   useEffect(() => {
     apply(theme);
-    try {
-      localStorage.setItem(KEY, theme);
-    } catch {
-      // Nothing to do; the toggle still works for this session.
-    }
   }, [theme]);
 
-  const toggle = useCallback(() => setTheme((t) => (t === 'dark' ? 'light' : 'dark')), []);
-  const value = useMemo(() => ({ theme, toggle }), [theme, toggle]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(KEY, preference);
+    } catch {
+      // Nothing to do; the choice still holds for this session.
+    }
+  }, [preference]);
+
+  const value = useMemo(
+    () => ({ theme, preference, setPreference }),
+    [theme, preference],
+  );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

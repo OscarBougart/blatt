@@ -40,7 +40,7 @@
     "enctype": "multipart/form-data",
     "params": {
       "files": [
-        { "name": "file", "accept": ["application/json", ".json"] }
+        { "name": "file", "accept": ["application/json"] }
       ]
     }
   }

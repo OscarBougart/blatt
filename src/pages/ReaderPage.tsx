@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { db } from '@/db/db';
 import type { Doc } from '@/db/types';
+import ReaderChrome from '@/components/ReaderChrome';
 import ReaderPane from '@/components/ReaderPane';
 import { useCurrentParagraph } from '@/hooks/useCurrentParagraph';
 import { useDwell } from '@/hooks/useDwell';
@@ -285,24 +286,12 @@ export default function ReaderPage() {
         />
       </div>
 
-      {/* Keyboard and screen-reader equivalents for the two swipes. Off-screen
-          rather than transparent overlays: a 24px invisible button down each
-          edge swallowed double-taps on the first and last word of every line,
-          and a stray thumb on the left edge left the document entirely. */}
-      <button
-        type="button"
-        onClick={() => void navigate('/')}
-        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-10 focus:bg-paper focus:p-2 dark:focus:bg-lamp"
-      >
-        Back to library
-      </button>
-      <button
-        type="button"
-        onClick={() => flip(side === 'de' ? 'en' : 'de')}
-        className="sr-only focus:not-sr-only focus:absolute focus:right-2 focus:top-2 focus:z-10 focus:bg-paper focus:p-2 dark:focus:bg-lamp"
-      >
-        {side === 'de' ? 'Show English' : 'Show German'}
-      </button>
+      <ReaderChrome
+        side={side}
+        pane={side === 'de' ? dePane : enPane}
+        onExit={() => void navigate('/')}
+        onFlip={() => flip(side === 'de' ? 'en' : 'de')}
+      />
     </div>
   );
 }
