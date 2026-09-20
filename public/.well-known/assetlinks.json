@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "dev.bougart.blatt",
+      "sha256_cert_fingerprints": [
+        "E4:C9:7D:6B:CD:65:F1:D8:F1:DC:C5:66:70:78:4C:51:ED:F3:2D:CE:6F:7E:DA:4D:33:8B:E9:19:B9:69:43:CC"
+      ]
+    }
+  }
+]

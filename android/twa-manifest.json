@@ -1,0 +1,47 @@
+{
+  "packageId": "dev.bougart.blatt",
+  "host": "blatt-mu.vercel.app",
+  "name": "Blatt",
+  "launcherName": "Blatt",
+  "display": "standalone",
+  "themeColor": "#1A1714",
+  "themeColorDark": "#1A1714",
+  "navigationColor": "#1A1714",
+  "navigationColorDark": "#1A1714",
+  "navigationDividerColor": "#1A1714",
+  "navigationDividerColorDark": "#1A1714",
+  "backgroundColor": "#FAF8F4",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "https://blatt-mu.vercel.app/icon-512.png",
+  "maskableIconUrl": "https://blatt-mu.vercel.app/icon-maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "blatt"
+  },
+  "appVersionName": "1.0.0",
+  "appVersion": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://blatt-mu.vercel.app/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://blatt-mu.vercel.app/",
+  "minSdkVersion": 23,
+  "orientation": "portrait",
+  "shareTarget": {
+    "action": "https://blatt-mu.vercel.app/share-target",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "files": [
+        { "name": "file", "accept": ["application/json", ".json"] }
+      ]
+    }
+  }
+}

@@ -34,3 +34,14 @@ scripts/.library-cache/
 
 .vercel
 .vercel
+
+# The Android wrapper (Bubblewrap TWA). The signing key and its password are
+# the app's identity on Play: losing them means never updating the listing
+# again, and publishing them means anyone can. Back them up off this machine.
+android/android.keystore
+android/keystore-password.txt
+android/app/build/
+android/build/
+android/.gradle/
+android/*.apk
+android/*.aab
