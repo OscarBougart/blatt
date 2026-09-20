@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import BackupSection from '@/components/BackupSection';
 import PaceSection from '@/components/PaceSection';
 import Page from '@/components/Page';
@@ -61,6 +62,12 @@ export default function SettingsPage() {
           CC BY-SA 3.0
         </a>
         .
+      </p>
+
+      <p className="type-en mt-4 text-graphite dark:text-lamp-gph">
+        <Link to="/privacy" className="underline">
+          Privacy
+        </Link>
       </p>
     </Page>
   );

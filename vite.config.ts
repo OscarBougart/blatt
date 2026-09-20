@@ -28,6 +28,10 @@ export default defineConfig({
         importScripts: ['share-target.js'],
       },
       manifest: {
+        // Pinned so the identity survives a future change of manifest URL:
+        // without it the id defaults to start_url, and a move would install
+        // as a second, unrelated app.
+        id: '/',
         name: 'Blatt',
         short_name: 'Blatt',
         description: 'Read German. Peek at English only when you mean to.',

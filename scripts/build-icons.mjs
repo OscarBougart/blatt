@@ -16,13 +16,79 @@ const PAPER = [0xfa, 0xf8, 0xf4];
 /** Anti-aliasing: samples per pixel, per axis. */
 const SS = 4;
 
-/** The favicon mark, in its own 32-unit box: two bars with rounded right ends. */
-function inMark(x, y) {
-  const bar = (top, bottom, right, cx) =>
-    (x >= 9 && x <= cx && y >= top && y <= bottom) ||
-    (x >= cx && (x - cx) ** 2 + (y - (top + bottom) / 2) ** 2 <= right ** 2);
+/**
+ * The mark: a leaf whose blade is ruled with lines of text too small to read.
+ * Blatt is the German for both a leaf and a sheet of paper, and the mark is
+ * the only place the app makes that joke.
+ *
+ * Geometry, all in a 32-unit box:
+ * the blade is a vesica — the overlap of two circles of equal radius whose
+ * centres sit either side of the midline. Half-width 6.4 over a half-height
+ * of 13 gives a lance shape; much wider and it reads as an egg.
+ */
+const HW = 6.4;
+const HH = 13;
+const CX = (HH * HH - HW * HW) / (2 * HW);
+const R = CX + HW;
 
-  return bar(8, 16, 4, 20) || bar(16, 24, 4, 21);
+/** Degrees. The leaf hangs off vertical so it does not read as a pod. */
+const TILT = -18;
+
+/** Ruled lines of "text": thickness, pitch, and where the first one starts. */
+const LINE = 0.85;
+const PITCH = 2.15;
+const FIRST = 6.2;
+
+/** Ragged right edge. Nothing here should resolve into a word. */
+const LENGTHS = [0.55, 0.92, 0.78, 1.0, 0.86, 0.97, 0.71, 0.94, 0.83, 0.48];
+
+/** Share of the box the mark leaves empty around itself. At 1 the tip and
+ *  the stem touch the edge and the icon feels stuffed. */
+const SCALE = 0.88;
+
+/** Into the leaf's own upright frame, undoing the tilt and the scale. */
+function unrotate(x, y) {
+  const a = (-TILT * Math.PI) / 180;
+  const dx = (x - 16) / SCALE;
+  const dy = (y - 16) / SCALE;
+  return [16 + dx * Math.cos(a) - dy * Math.sin(a), 16 + dx * Math.sin(a) + dy * Math.cos(a)];
+}
+
+function inBlade(x, y) {
+  return (
+    (x - (16 + CX)) ** 2 + (y - 16) ** 2 <= R * R &&
+    (x - (16 - CX)) ** 2 + (y - 16) ** 2 <= R * R
+  );
+}
+
+/** Half the blade's width at a given height, less the margin the text keeps. */
+function textHalf(y) {
+  return Math.sqrt(Math.max(0, R * R - (y - 16) ** 2)) - CX - 1;
+}
+
+function inText(x, y) {
+  const index = Math.floor((y - FIRST) / PITCH);
+  if (index < 0 || index >= LENGTHS.length) return false;
+  if (y - FIRST - index * PITCH > LINE) return false;
+
+  const half = textHalf(FIRST + index * PITCH + LINE / 2);
+  // Where the blade has narrowed to nothing there is no room for a line, and
+  // a two-pixel dash by the stem looks like dirt rather than type.
+  if (half <= 0.6) return false;
+
+  return x >= 16 - half && x <= 16 - half + half * 2 * LENGTHS[index];
+}
+
+function inStem(x, y) {
+  // Tapered: a stalk, not the nub a constant width gives.
+  const t = (y - HH - 16) / 2.6;
+  return Math.abs(x - 16) <= 0.62 - 0.26 * t && y >= 16 + HH - 0.3 && y <= 16 + HH + 2.6;
+}
+
+/** The mark, in the colour of paper: blade and stem, less the lines. */
+function inMark(x, y) {
+  const [a, b] = unrotate(x, y);
+  return (inBlade(a, b) && !inText(a, b)) || inStem(a, b);
 }
 
 function inRoundedSquare(x, y, size, radius) {
@@ -125,9 +191,66 @@ const ICONS = [
   { file: 'public/apple-touch-icon.png', size: 180, inset: 0.08, rounded: false },
   // Android may crop to a circle: keep the mark inside the safe zone.
   { file: 'public/icon-maskable-512.png', size: 512, inset: 0.18, rounded: false },
+  // The Play Store listing icon. Not served by the app: it is uploaded to the
+  // Console by hand. Play masks and rounds the icon itself, so this one is a
+  // full-bleed opaque square — baking in corners would round them twice, and
+  // Play rejects an icon whose corners are transparent.
+  { file: 'docs/play/icon-play-512.png', size: 512, inset: 0.08, rounded: false },
 ];
 
 for (const { file, size, inset, rounded } of ICONS) {
   writeFileSync(file, png(size, render(size, inset, rounded)));
   console.log(`${file}  ${size}x${size}`);
 }
+
+/**
+ * The favicon, from the same constants. Emitted here rather than kept by hand
+ * so the vector and the rasters cannot drift apart: the mark is defined once,
+ * above, and this is a second rendering of it.
+ */
+function svg({ ground = true, blade = PAPER, lines = INK } = {}) {
+  const hex = (c) => '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('');
+  const n = (v) => Number(v.toFixed(3));
+
+  const bladePath =
+    `M16,${n(16 - HH)} A${n(R)},${n(R)} 0 0,1 16,${n(16 + HH)}` +
+    ` A${n(R)},${n(R)} 0 0,1 16,${n(16 - HH)} Z`;
+
+  const rules = LENGTHS.map((length, index) => {
+    const top = FIRST + index * PITCH;
+    const half = textHalf(top + LINE / 2);
+    if (half <= 0.6) return '';
+    return `<rect x="${n(16 - half)}" y="${n(top)}" width="${n(half * 2 * length)}" height="${LINE}"/>`;
+  }).join('');
+
+  // The stem, as the taper inStem() describes.
+  const y0 = 16 + HH - 0.3;
+  const y1 = 16 + HH + 2.6;
+  const w0 = 0.62 + 0.26 * 0.3 / 2.6;
+  const w1 = 0.62 - 0.26;
+  const stem =
+    `<path d="M${n(16 - w0)},${n(y0)} L${n(16 + w0)},${n(y0)}` +
+    ` L${n(16 + w1)},${n(y1)} L${n(16 - w1)},${n(y1)} Z" fill="${hex(blade)}"/>`;
+
+  const transform = `translate(16,16) scale(${SCALE}) rotate(${TILT}) translate(-16,-16)`;
+
+  const tile = ground ? `
+  <rect width="32" height="32" rx="7.04" fill="${hex(INK)}"/>` : '';
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">${tile}
+  <g transform="${transform}">
+    ${stem}
+    <path d="${bladePath}" fill="${hex(blade)}"/>
+    <g fill="${hex(lines)}">${rules}</g>
+  </g>
+</svg>
+`;
+}
+
+writeFileSync('public/favicon.svg', svg());
+console.log('public/favicon.svg  vector');
+
+// The bare mark on no ground, ink on nothing: what the feature graphic sets
+// against paper. Same constants, so it cannot drift from the icons.
+writeFileSync('docs/play/mark.svg', svg({ ground: false, blade: INK, lines: PAPER }));
+console.log('docs/play/mark.svg  vector');

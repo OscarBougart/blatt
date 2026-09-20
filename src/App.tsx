@@ -14,6 +14,7 @@ import ReviewPage from './pages/ReviewPage';
 import ImportPage from './pages/ImportPage';
 import StatsPage from './pages/StatsPage';
 import SettingsPage from './pages/SettingsPage';
+import PrivacyPage from './pages/PrivacyPage';
 import NotFoundPage from './pages/NotFoundPage';
 
 export default function App() {
@@ -38,6 +39,7 @@ export default function App() {
                 <Route path="/import" element={<ImportPage />} />
                 <Route path="/stats" element={<StatsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
                 <Route path="*" element={<NotFoundPage />} />
               </Route>
             </Routes>
