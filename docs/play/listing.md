@@ -1,4 +1,5 @@
-# Play Store listing copy
+
+    # Play Store listing copy
 
 Assets and text for the Google Play Console listing. Nothing here is served by
 the app; it is pasted into the Console by hand.
