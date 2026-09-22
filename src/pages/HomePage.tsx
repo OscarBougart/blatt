@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import DocRow from '@/components/DocRow';
+import EmptyState from '@/components/EmptyState';
 import Page from '@/components/Page';
 import { db } from '@/db/db';
 import { lastExportAt, shouldPromptBackup } from '@/lib/backup';
@@ -65,9 +66,9 @@ export default function HomePage() {
       )}
 
       {docs.length === 0 ? (
-        <p className="type-en text-graphite dark:text-lamp-gph">
-          No texts yet. Import one to begin.
-        </p>
+        <EmptyState to="/import" action="Import a text">
+          No texts yet.
+        </EmptyState>
       ) : (
         <>
           <ul>

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import FlipPlot from '@/components/FlipPlot';
+import EmptyState from '@/components/EmptyState';
 import Page from '@/components/Page';
 import { db } from '@/db/db';
 import type { ReviewLog, Session } from '@/db/types';
@@ -84,9 +85,9 @@ export default function StatsPage() {
   if (readable.length === 0) {
     return (
       <Page title="Flip rate">
-        <p className={`type-en ${muted}`}>
+        <EmptyState to="/" action="Find something to read">
           No reading sessions yet. Read a few paragraphs and this fills in.
-        </p>
+        </EmptyState>
         <ReviewLoad logs={logs ?? []} />
       </Page>
     );

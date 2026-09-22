@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
+import EmptyState from '@/components/EmptyState';
 import Page from '@/components/Page';
 import ReviewCard from '@/components/ReviewCard';
 import { db } from '@/db/db';
@@ -34,6 +35,13 @@ export default function ReviewPage() {
   /** Bumped to redeal: asking for another round of the same length. */
   const [deal, setDeal] = useState(0);
   const [queue, setQueue] = useState<SavedWord[] | null>(null);
+  /**
+   * How many words are saved at all. An empty queue means two different
+   * things — nothing saved, or nothing due — and they want different advice.
+   */
+  const [saved, setSaved] = useState(0);
+  /** The deal failed. Without this the screen waits on a queue that never comes. */
+  const [failed, setFailed] = useState(false);
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [hinted, setHinted] = useState(false);
@@ -49,10 +57,12 @@ export default function ReviewPage() {
   useEffect(() => {
     if (style === null || limit === null) return;
     let cancelled = false;
+    setFailed(false);
 
     void (async () => {
       const all = await db.words.toArray();
       if (cancelled) return;
+      setSaved(all.length);
 
       const { cards, fresh } = reviewSession(all, { limit, newPerDay, now: Date.now() });
 
@@ -65,7 +75,12 @@ export default function ReviewPage() {
       setQueue(shuffle([...cards, ...fresh]));
       setIndex(0);
       shownAt.current = Date.now();
-    })();
+    })().catch(() => {
+      // Dexie can refuse outright — a blocked upgrade, storage evicted under
+      // us. Leaving `queue` null silently renders a blank page with no back
+      // arrow and no way to retry, which is worse than saying so.
+      if (!cancelled) setFailed(true);
+    });
 
     return () => {
       cancelled = true;
@@ -115,12 +130,32 @@ export default function ReviewPage() {
 
   if (style === null) return <StylePicker onPick={setStyle} />;
   if (limit === null) return <LengthPicker onPick={setLimit} onBack={() => setStyle(null)} />;
-  if (queue === null) return <Page title="Review" />;
+  if (failed) {
+    return (
+      <Page title="Review" back={pickAgain}>
+        <EmptyState action="Try again" onAction={() => setDeal((n) => n + 1)}>
+          The cards could not be dealt.
+        </EmptyState>
+      </Page>
+    );
+  }
+
+  if (queue === null) return <Page title="Review" back={pickAgain} />;
 
   if (queue.length === 0) {
+    // Nothing due is not the same as nothing saved, and a reader who has been
+    // saving words all week deserves to be told which of the two this is.
     return (
       <Page title="Review" back={() => setLimit(null)}>
-        <p className={`type-en ${muted}`}>No words saved yet. Tap one while reading.</p>
+        {saved === 0 ? (
+          <EmptyState to="/" action="Find something to read">
+            No words saved yet. Double-tap a word while reading.
+          </EmptyState>
+        ) : (
+          <EmptyState to="/words" action="See your words">
+            Nothing due right now. Come back later, or read something new.
+          </EmptyState>
+        )}
       </Page>
     );
   }
@@ -142,16 +177,27 @@ export default function ReviewPage() {
         </span>
       }
     >
-      <ReviewCard
-        word={card}
-        docTitle={titles.get(card.docId) ?? ''}
-        style={style}
-        revealed={revealed}
-        hinted={hinted}
-        onReveal={() => setRevealed(true)}
-        onHint={() => setHinted(true)}
-        onGrade={onGrade}
-      />
+      {/* Centred in what is left of the screen rather than pinned to the top
+          of it: a short card used to sit under the counter with the rest of
+          the page empty beneath it. A long sentence grows past this, which is
+          why it is a minimum and not a height. The extra room once revealed is
+          for the grade bar, which is fixed and so takes no space of its own. */}
+      <div
+        className={`flex min-h-[calc(100dvh-14rem)] flex-col justify-center ${
+          revealed ? 'pb-16' : ''
+        }`}
+      >
+        <ReviewCard
+          word={card}
+          docTitle={titles.get(card.docId) ?? ''}
+          style={style}
+          revealed={revealed}
+          hinted={hinted}
+          onReveal={() => setRevealed(true)}
+          onHint={() => setHinted(true)}
+          onGrade={onGrade}
+        />
+      </div>
     </Page>
   );
 }

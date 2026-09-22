@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
+import EmptyState from '@/components/EmptyState';
 import Page from '@/components/Page';
 import WordRow from '@/components/WordRow';
 import { db } from '@/db/db';
@@ -71,11 +72,26 @@ export default function WordsPage() {
       )}
 
       {visible.length === 0 ? (
-        <p className={`type-en mt-8 ${muted}`}>
-          {(words?.length ?? 0) === 0
-            ? 'No words yet. Double-tap a word while reading.'
-            : 'Nothing matches.'}
-        </p>
+        <div className="mt-8">
+          {(words?.length ?? 0) === 0 ? (
+            <EmptyState to="/" action="Find something to read">
+              No words yet. Double-tap a word while reading.
+            </EmptyState>
+          ) : (
+            // A stale text filter and a search term are easy to end up behind
+            // at once, and clearing them one at a time means guessing which of
+            // the two is hiding the word.
+            <EmptyState
+              action="Clear search"
+              onAction={() => {
+                setQuery('');
+                setDocId('all');
+              }}
+            >
+              Nothing matches.
+            </EmptyState>
+          )}
+        </div>
       ) : (
         <ul className="mt-6">
           {visible.map((word) => (

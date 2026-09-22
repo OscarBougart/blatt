@@ -18,7 +18,10 @@ function hasSeen(): boolean {
   try {
     return localStorage.getItem(SEEN_KEY) === '1';
   } catch {
-    return true; // No storage: assume it has been seen rather than nag forever.
+    // No storage. Assume it has *not* been seen: the cost of being wrong is
+    // that the arrow lingers five seconds longer, weighed against a reader who
+    // never finds the way out at all.
+    return false;
   }
 }
 
@@ -49,7 +52,26 @@ interface ReaderChromeProps {
  */
 export default function ReaderChrome({ side, pane, onExit, onFlip }: ReaderChromeProps) {
   const [visible, setVisible] = useState(true);
+  /**
+   * A text short enough to fit the screen can never be scrolled up, so the
+   * gesture that calls the arrow back is unavailable to it — and the arrow
+   * fades regardless, leaving the undisclosed swipe as the only way out.
+   * Where there is no scrolling to protect, the arrow stays.
+   */
+  const [scrollable, setScrollable] = useState(true);
   const first = useRef(!hasSeen());
+
+  useEffect(() => {
+    if (!pane) return;
+    const measure = () => setScrollable(pane.scrollHeight > pane.clientHeight + SCROLL_EPSILON);
+    measure();
+
+    // The panes fill after mount and reflow when the type size changes, so one
+    // measurement at mount is not enough.
+    const observer = new ResizeObserver(measure);
+    observer.observe(pane);
+    return () => observer.disconnect();
+  }, [pane]);
 
   // The opening appearance. Runs once per document, not once per flip.
   useEffect(() => {
@@ -89,18 +111,20 @@ export default function ReaderChrome({ side, pane, onExit, onFlip }: ReaderChrom
     };
   }, [pane]);
 
+  const shown = visible || !scrollable;
+
   return (
     <>
       <button
         type="button"
         onClick={onExit}
         aria-label="Back to library"
-        aria-hidden={!visible}
-        tabIndex={visible ? 0 : -1}
+        aria-hidden={!shown}
+        tabIndex={shown ? 0 : -1}
         className={[
           'absolute left-2 top-2 z-10 flex h-12 w-12 items-center justify-center',
           'text-graphite transition-opacity duration-500 dark:text-lamp-gph',
-          visible ? 'opacity-100' : 'pointer-events-none opacity-0',
+          shown ? 'opacity-100' : 'pointer-events-none opacity-0',
         ].join(' ')}
       >
         <BackArrow />

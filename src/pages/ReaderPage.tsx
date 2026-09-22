@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { db } from '@/db/db';
 import type { Doc } from '@/db/types';
 import ReaderChrome from '@/components/ReaderChrome';
@@ -38,7 +38,14 @@ function scrollToParagraph(pane: HTMLElement | null, index: number) {
 export default function ReaderPage() {
   const { docId } = useParams<{ docId: string }>();
   const navigate = useNavigate();
-  const [doc, setDoc] = useState<Doc | null>(null);
+  /**
+   * `undefined` while the lookup is in flight, `null` once it has come back
+   * empty. Collapsing the two into `null` meant a deleted or mistyped id
+   * rendered the same blank screen as the first frame of a normal open — and
+   * this route sits outside the Shell, so that blank screen had no nav, no
+   * back arrow and nothing to say for itself.
+   */
+  const [doc, setDoc] = useState<Doc | null | undefined>(undefined);
   const [side, setSide] = useState<Side>('de');
   const [restoreTo, setRestoreTo] = useState<number | null>(null);
   const [tracking, setTracking] = useState(false);
@@ -112,7 +119,11 @@ export default function ReaderPage() {
           if (!cancelled) void db.docs.update(loaded.id, { lemmaMap });
         });
       }
-    })();
+    })().catch(() => {
+      // A read that throws is, from here, indistinguishable from a text that
+      // is not there — and both want the same screen with the same way off it.
+      if (!cancelled) setDoc(null);
+    });
 
     return () => {
       cancelled = true;
@@ -241,9 +252,29 @@ export default function ReaderPage() {
   // Some browsers end a swipe with a click; without this, one gesture both
   // flips the language and saves a word.
   const ignoreTap = useCallback(() => Date.now() - lastSwipeAt.current < 400, []);
-  const onWordTap = useWordSaving({ doc, saved, save, remove, touch, ignoreTap });
+  // `undefined` and `null` are two different absences here, but to a tap
+  // handler with no document they are the same one.
+  const onWordTap = useWordSaving({ doc: doc ?? null, saved, save, remove, touch, ignoreTap });
 
-  if (!doc) return null;
+  // Still looking. One frame, normally — and a spinner for one frame is worse
+  // than nothing at all.
+  if (doc === undefined) return null;
+
+  // The text is gone, or never existed. This route is mounted outside the
+  // Shell, so the way out has to be part of this screen or there is none.
+  if (doc === null) {
+    return (
+      <div className="fixed inset-0 flex flex-col items-center justify-center gap-6 bg-paper px-6 dark:bg-lamp">
+        <p className="type-en text-graphite dark:text-lamp-gph">That text is no longer here.</p>
+        <Link
+          to="/"
+          className="inline-flex min-h-12 items-center rounded-sm border border-rule px-4 text-graphite dark:border-lamp-gph/25 dark:text-lamp-gph"
+        >
+          Back to the library
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div
