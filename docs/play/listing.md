@@ -15,7 +15,7 @@ Blatt
 
 ## Short description (80 max)
 
-Read German. Peek at English only when you mean to.
+Read German. Peek at English only when you mean to and save words that turn into flashcards.
 
 ## Full description (4000 max)
 

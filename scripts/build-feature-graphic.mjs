@@ -32,10 +32,13 @@ const font = pathToFileURL(
   path.resolve('node_modules/@fontsource-variable/newsreader/files/newsreader-latin-wght-normal.woff2'),
 ).href;
 
-// The flip, shown as the one thing a still image can show of it: the same
-// sentence twice, ink then graphite. Side by side on a store page is not the
-// reading view — nothing here is the app's screen, and the rule that keeps
-// them apart governs the reader, not the poster.
+// The whole product, read downwards: the German, the same sentence flipped to
+// graphite, and then the word that was tapped, come back as a card with the
+// sentence around it. Three beats of one sentence rather than three features.
+//
+// Side by side on a store page is not the reading view — nothing here is the
+// app's screen, and the rule that keeps the languages apart governs the
+// reader, not the poster.
 const html = `<!doctype html>
 <meta charset="utf-8">
 <style>
@@ -55,13 +58,14 @@ const html = `<!doctype html>
     padding: 0 76px;
     -webkit-font-smoothing: antialiased;
   }
-  /* The composition is centred as one block; the two columns inside it hang
-     from a shared first baseline, so the wordmark and the German start on the
-     same line rather than each floating in its own half. */
+  /* The two columns are centred against each other rather than hung from a
+     shared first baseline. With three beats the right column outgrew the left,
+     and a shared baseline then pushed its last line off the bottom of the
+     frame: the alignment has to give way to the content, not the other way. */
   .sheet {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    align-items: baseline;
+    align-items: center;
     gap: 56px;
     width: 100%;
   }
@@ -74,9 +78,19 @@ const html = `<!doctype html>
     font-size: 25px; line-height: 1.45; letter-spacing: -0.006em;
     color: #6B6862; max-width: 20ch;
   }
-  .lines { font-size: 25px; line-height: 1.65; letter-spacing: -0.006em; }
+  .lines { font-size: 22px; line-height: 1.6; letter-spacing: -0.006em; }
   .de { color: #141210; }
-  .en { color: #6B6862; margin-top: 26px; }
+  .en { color: #6B6862; }
+  /* The same hairline that separates the wordmark from its tagline, doing the
+     same job here: these are beats of one sentence, not three panels. */
+  .hair { width: 56px; height: 1px; background: #E3DFD7; margin: 20px 0; }
+  /* The card. The blank is the app's own cloze: the word is taken out of the
+     sentence it was met in, which is the only place it means anything. */
+  .blank {
+    display: inline-block; width: 124px;
+    border-bottom: 1px solid #141210; margin-bottom: 3px;
+  }
+  .answer { color: #6B6862; margin-top: 8px; }
 </style>
 <body>
   <div class="sheet">
@@ -89,8 +103,12 @@ const html = `<!doctype html>
   <div class="lines">
     <div class="de" lang="de">Es war einmal ein kleines M&auml;dchen, das hatte
       alle lieb, die es nur ansahen.</div>
+    <div class="hair"></div>
     <div class="en">There was once a little girl who was loved by everyone who
       looked at her.</div>
+    <div class="hair"></div>
+    <div class="de" lang="de">&hellip; die es nur <span class="blank"></span></div>
+    <div class="answer">ansehen &middot; to look at</div>
   </div>
   </div>
 </body>`;
