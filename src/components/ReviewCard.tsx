@@ -150,7 +150,9 @@ export default function ReviewCard({
       </div>
 
       {revealed && (
-        <div className={`card-in fixed inset-x-0 bottom-12 border-t bg-paper dark:bg-lamp ${rule}`}>
+        <div
+          className={`card-in fixed inset-x-0 bottom-[var(--nav-clear)] border-t bg-paper dark:bg-lamp ${rule}`}
+        >
           <div className="mx-auto flex max-w-prose">
             {GRADES.map((grade) => (
               <button

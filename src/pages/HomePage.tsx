@@ -56,10 +56,13 @@ export default function HomePage() {
 
   return (
     <Page title="Blatt" aside={<SettingsLink />}>
+      {/* Ink, not graphite, and underlined: this is the one thing on the
+          screen asking to be acted on, and in graphite it read as a caption
+          that happened to be sitting above the library. */}
       {promptBackup && (
         <Link
           to="/settings"
-          className="type-en mb-6 flex min-h-12 items-center text-graphite dark:text-lamp-gph"
+          className="type-en mb-6 flex min-h-12 items-center underline underline-offset-4"
         >
           Not backed up in two weeks
         </Link>
@@ -82,16 +85,27 @@ export default function HomePage() {
             ))}
           </ul>
 
-          {/* Behind a toggle so the library reads as a list of texts rather
-              than a row of controls. */}
-          <button
-            type="button"
-            onClick={() => setEditing((on) => !on)}
-            aria-pressed={editing}
-            className="type-en mt-4 flex min-h-12 items-center text-graphite dark:text-lamp-gph"
-          >
-            {editing ? 'Done' : 'Edit'}
-          </button>
+          {/* Import left the tab bar: it is something you do to the library,
+              not a fifth place to be. Edit keeps its quiet treatment so the
+              screen still reads as a list of texts rather than a row of
+              controls. */}
+          <div className="mt-6 flex items-center justify-between gap-4">
+            <Link
+              to="/import"
+              className="type-en inline-flex min-h-12 items-center rounded-sm border border-sill-edge px-4 text-graphite dark:border-lamp-sill-edge dark:text-lamp-gph"
+            >
+              Import a text
+            </Link>
+
+            <button
+              type="button"
+              onClick={() => setEditing((on) => !on)}
+              aria-pressed={editing}
+              className="type-en flex min-h-12 items-center px-1 text-graphite dark:text-lamp-gph"
+            >
+              {editing ? 'Done' : 'Edit'}
+            </button>
+          </div>
         </>
       )}
     </Page>

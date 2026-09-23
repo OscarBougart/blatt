@@ -79,11 +79,16 @@ export default function SettingsPage() {
         .
       </p>
 
-      <p className="type-en mt-4 text-graphite dark:text-lamp-gph">
-        <Link to="/privacy" className="underline">
-          Privacy
-        </Link>
-      </p>
+      {/* The only route to the privacy page, and at 18px it was the smallest
+          thing to hit in the app. The Wiktionary and licence links above stay
+          as they are: those sit inside a sentence, where a thumb-sized target
+          would break the line. */}
+      <Link
+        to="/privacy"
+        className="type-en mt-4 inline-flex min-h-12 items-center underline underline-offset-4 text-graphite dark:text-lamp-gph"
+      >
+        Privacy
+      </Link>
     </Page>
   );
 }

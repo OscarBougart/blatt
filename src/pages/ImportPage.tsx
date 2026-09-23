@@ -116,7 +116,9 @@ export default function ImportPage() {
   }
 
   return (
-    <Page title="Import">
+    // Import left the tab bar, so this screen is now reached from the library
+    // and has to carry its own way back, the same as Settings does.
+    <Page title="Import" back={() => void navigate('/')}>
       {shared && (
         <p role="status" className="type-en mb-6 text-graphite dark:text-lamp-gph">
           {shared}

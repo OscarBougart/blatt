@@ -20,6 +20,17 @@
   --color-lamp-ink: #ede9e1;
   --color-lamp-gph: #8b857b;
 
+  /* The sill: the one surface that is not the page.
+     The navigation is not part of the text, and on a ground this quiet a
+     hairline alone cannot say so — at 1.25:1 the old rule was invisible and
+     the bar read as four words that had fallen off the bottom of the page.
+     A flat tone half a step off the ground separates them without a shadow
+     or a gradient, neither of which this product allows. */
+  --color-sill: #f1eee7;
+  --color-sill-edge: #c4bdae;
+  --color-lamp-sill: #221e1a;
+  --color-lamp-sill-edge: #4e463b;
+
   /* The only colour in the reading product. Flip rate, and nothing else. */
   --color-signal: #b0472c;
 
@@ -45,10 +56,34 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/*
+ * Keyboard focus, drawn in the app's own ink rather than the browser's blue.
+ * `:focus-visible` rather than `:focus`, so a thumb never summons a ring the
+ * reader did not ask for.
+ */
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.dark :focus-visible {
+  outline-color: var(--color-lamp-ink);
+}
+
 /* Reading size, set from Settings. Pinch-zoom is disabled in the reader so
    that double-tap can save a word, so this control gives the size back. */
 :root {
   --read-size: 19px;
+
+  /* The navigation's full height: the 56px row plus its top rule. Anything
+     that has to sit clear of the bar measures from here rather than carrying
+     its own copy of the number, which is how the grade bar came to hide a
+     sliver of itself behind the rule. */
+  --nav-h: calc(3.5rem + 1px);
+
+  /* The same, plus whatever the phone reserves below it. */
+  --nav-clear: calc(var(--nav-h) + env(safe-area-inset-bottom));
 }
 
 /* German is ink: printed, full contrast. Compounds must hyphenate or they tear
