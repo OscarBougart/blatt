@@ -101,7 +101,7 @@ export default function HomePage() {
               type="button"
               onClick={() => setEditing((on) => !on)}
               aria-pressed={editing}
-              className="type-en flex min-h-12 items-center px-1 text-graphite dark:text-lamp-gph"
+              className="type-en flex min-h-12 min-w-12 items-center justify-end px-1 text-graphite dark:text-lamp-gph"
             >
               {editing ? 'Done' : 'Edit'}
             </button>

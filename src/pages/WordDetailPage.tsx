@@ -163,8 +163,10 @@ export default function WordDetailPage() {
         </div>
       </div>
 
-      {/* The reader's own definition. Never overwritten by a later fetch. */}
-      <div className="mb-6">
+      {/* The reader's own definition. Never overwritten by a later fetch.
+          A label rather than a div, so the caption is also the field's name —
+          a screen reader otherwise announced an unnamed text area. */}
+      <label className="mb-6 block">
         <span className={`type-en ${muted}`}>Your definition</span>
         {/* Uncontrolled, keyed by the word: the stored note seeds it once and
             the field is the reader's from then on, saved when they leave it. */}
@@ -175,7 +177,7 @@ export default function WordDetailPage() {
           rows={2}
           className={`mt-2 w-full resize-y border-b bg-transparent py-2 font-[inherit] outline-none ${rule}`}
         />
-      </div>
+      </label>
 
       {/* A suspended leech says so, and says what to do about it. */}
       {word.leechFlaggedAt !== undefined && (
@@ -228,7 +230,7 @@ export default function WordDetailPage() {
             void navigate('/words');
           })
         }
-        className={`min-h-12 ${muted}`}
+        className={`min-h-12 min-w-12 text-left ${muted}`}
       >
         Delete
       </button>
