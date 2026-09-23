@@ -6,7 +6,6 @@ import {
   LEECH_LAPSES,
   MIN_EASE,
   dueWords,
-  formatDays,
   isLeech,
   nextEase,
   nextInterval,
@@ -169,16 +168,6 @@ describe('shuffle', () => {
     const items = [1, 2, 3];
     shuffle(items, () => 0);
     expect(items).toEqual([1, 2, 3]);
-  });
-});
-
-describe('formatDays', () => {
-  it('stays compact enough for a button', () => {
-    expect(formatDays(1)).toBe('1d');
-    expect(formatDays(6)).toBe('6d');
-    expect(formatDays(15)).toBe('2w');
-    expect(formatDays(38)).toBe('1mo');
-    expect(formatDays(400)).toBe('1.1y');
   });
 });
 

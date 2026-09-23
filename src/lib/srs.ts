@@ -145,11 +145,3 @@ export function shuffle<T>(items: T[], random: () => number = Math.random): T[] 
   }
   return out;
 }
-
-/** Compact enough for a button: 1d, 6d, 3w, 5mo, 2y. */
-export function formatDays(days: number): string {
-  if (days < 7) return `${days}d`;
-  if (days < 30) return `${Math.round(days / 7)}w`;
-  if (days < 365) return `${Math.round(days / 30)}mo`;
-  return `${Math.round(days / 36.5) / 10}y`;
-}

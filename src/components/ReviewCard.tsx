@@ -1,7 +1,7 @@
 import type { SavedWord } from '@/db/types';
 import { cloze } from '@/lib/cloze';
 import type { SessionStyle } from '@/lib/queue';
-import { formatDays, GRADES, GRADE_LABEL, schedule, type Grade } from '@/lib/srs';
+import { GRADES, GRADE_LABEL, type Grade } from '@/lib/srs';
 
 interface Props {
   word: SavedWord;
@@ -59,10 +59,6 @@ export default function ReviewCard({
   // with. Elsewhere the hint is the word's own gloss — close to the answer on
   // a recognition card, which is what Tipp is for.
   const canHint = !wordOnly && Boolean(definition);
-
-  // Every preview on the grade bar is measured from one instant, so the four
-  // intervals are comparable with each other.
-  const now = Date.now();
 
   return (
     <>
@@ -153,21 +149,21 @@ export default function ReviewCard({
         <div
           className={`card-in fixed inset-x-0 bottom-[var(--nav-clear)] border-t bg-paper dark:bg-lamp ${rule}`}
         >
+          {/* No interval preview under the labels. SM-2 fixes the first two
+              steps at 1 and 6 days whatever the grade, and after that Medium,
+              Good and Easy land within a few percent of each other — the
+              preview read 6d / 6d / 6d, telling the reader the three buttons
+              were the same. The grade's real effect is on ease, which only
+              shows reviews later. */}
           <div className="mx-auto flex max-w-prose">
             {GRADES.map((grade) => (
               <button
                 key={grade}
                 type="button"
                 onClick={() => onGrade(grade)}
-                className="flex min-h-16 flex-1 flex-col items-center justify-center gap-0.5 text-[15px] transition-colors active:bg-ink/5 dark:active:bg-lamp-ink/10"
+                className="flex min-h-16 flex-1 items-center justify-center text-[15px] transition-colors active:bg-ink/5 dark:active:bg-lamp-ink/10"
               >
-                <span>{GRADE_LABEL[grade]}</span>
-                {/* What the button actually does to the schedule. `schedule`
-                    is the same pure function `gradeCard` commits, so the
-                    preview cannot drift from the interval the reader gets. */}
-                <span className={`text-[13px] ${muted}`}>
-                  {formatDays(schedule(word, grade, now).interval)}
-                </span>
+                {GRADE_LABEL[grade]}
               </button>
             ))}
           </div>
