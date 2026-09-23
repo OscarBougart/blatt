@@ -1,25 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { db } from '@/db/db';
 import type { Doc } from '@/db/types';
 import ReaderChrome from '@/components/ReaderChrome';
-import ReaderPane from '@/components/ReaderPane';
+import ReaderMissing from '@/components/ReaderMissing';
+import ReaderTrack from '@/components/ReaderTrack';
 import { useCurrentParagraph } from '@/hooks/useCurrentParagraph';
 import { useDwell } from '@/hooks/useDwell';
 import { useReadingSession } from '@/hooks/useReadingSession';
 import { useSavedWords } from '@/hooks/useSavedWords';
 import { useSwipe } from '@/hooks/useSwipe';
-import { useFlipHint, HINT_SHIFT } from '@/hooks/useFlipHint';
+import { useFlipHint } from '@/hooks/useFlipHint';
 import { useWordSaving } from '@/hooks/useWordSaving';
 import { lemmatizeDocument } from '@/lib/lemma/lemmatizeDocument';
 import { lemmasOf, recordSightings } from '@/lib/sightings';
 import { positionOf, scrollTopFor } from '@/lib/readingPosition';
 
 type Side = 'de' | 'en';
-
-const SLIDE_MS = 260;
-const HINT_MS = 520;
-const EASE = 'cubic-bezier(.2,.8,.2,1)';
 
 /** Breathing room above the paragraph a flip or a restore lands on. */
 const LANDING_OFFSET = 28;
@@ -260,21 +257,7 @@ export default function ReaderPage() {
   // than nothing at all.
   if (doc === undefined) return null;
 
-  // The text is gone, or never existed. This route is mounted outside the
-  // Shell, so the way out has to be part of this screen or there is none.
-  if (doc === null) {
-    return (
-      <div className="fixed inset-0 flex flex-col items-center justify-center gap-6 bg-paper px-6 dark:bg-lamp">
-        <p className="type-en text-graphite dark:text-lamp-gph">That text is no longer here.</p>
-        <Link
-          to="/"
-          className="inline-flex min-h-12 items-center rounded-sm border border-rule px-4 text-graphite dark:border-lamp-gph/25 dark:text-lamp-gph"
-        >
-          Back to the library
-        </Link>
-      </div>
-    );
-  }
+  if (doc === null) return <ReaderMissing />;
 
   return (
     <div
@@ -283,39 +266,17 @@ export default function ReaderPage() {
       onScrollCapture={touch}
       onClick={onWordTap}
     >
-      <div
-        className="flex h-full w-[200%] will-change-transform"
-        style={{
-          transform:
-            side === 'en'
-              ? 'translateX(-50%)'
-              : hinting
-                ? `translateX(${HINT_SHIFT})`
-                : 'translateX(0)',
-          // The hint moves more slowly than a flip: it is being shown to you,
-          // not performed by you.
-          transition: `transform ${hinting ? HINT_MS : SLIDE_MS}ms ${EASE}`,
-        }}
-      >
-        <ReaderPane
-          language="de"
-          pairs={doc.pairs}
-          active={side === 'de'}
-          paneRef={setDePane}
-          register={deRegister}
-          savedKeys={savedKeys}
-          exitingKeys={exiting}
-        />
-        <ReaderPane
-          language="en"
-          pairs={doc.pairs}
-          active={side === 'en'}
-          paneRef={setEnPane}
-          register={enRegister}
-          savedKeys={savedKeys}
-          exitingKeys={exiting}
-        />
-      </div>
+      <ReaderTrack
+        side={side}
+        hinting={hinting}
+        pairs={doc.pairs}
+        dePaneRef={setDePane}
+        enPaneRef={setEnPane}
+        deRegister={deRegister}
+        enRegister={enRegister}
+        savedKeys={savedKeys}
+        exitingKeys={exiting}
+      />
 
       <ReaderChrome
         side={side}
