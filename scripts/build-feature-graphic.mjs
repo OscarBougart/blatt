@@ -50,9 +50,9 @@ const html = `<!doctype html>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 1024px; height: 500px; }
   body {
-    background: #FAF8F4;
+    background: #ECF6F7;
     font-family: 'Newsreader', serif;
-    color: #141210;
+    color: #0B2425;
     display: flex;
     align-items: center;
     padding: 0 76px;
@@ -73,24 +73,27 @@ const html = `<!doctype html>
      inset (plus the B's side bearing) to sit flush with the wordmark. */
   .leaf { width: 104px; height: 104px; display: block; margin: 0 0 22px -30px; }
   .mark { font-size: 86px; letter-spacing: -0.02em; line-height: 1; }
-  .rule { width: 56px; height: 1px; background: #E3DFD7; margin: 30px 0; }
+  .rule { width: 56px; height: 1px; background: #D3E6E7; margin: 30px 0; }
   .tag {
     font-size: 25px; line-height: 1.45; letter-spacing: -0.006em;
-    color: #6B6862; max-width: 20ch;
+    color: #4F696A; max-width: 20ch;
   }
   .lines { font-size: 22px; line-height: 1.6; letter-spacing: -0.006em; }
-  .de { color: #141210; }
-  .en { color: #6B6862; }
+  .de { color: #0B2425; }
+  .en { color: #4F696A; }
   /* The same hairline that separates the wordmark from its tagline, doing the
      same job here: these are beats of one sentence, not three panels. */
-  .hair { width: 56px; height: 1px; background: #E3DFD7; margin: 20px 0; }
+  .hair { width: 56px; height: 1px; background: #D3E6E7; margin: 20px 0; }
   /* The card. The blank is the app's own cloze: the word is taken out of the
      sentence it was met in, which is the only place it means anything. */
   .blank {
     display: inline-block; width: 124px;
-    border-bottom: 1px solid #141210; margin-bottom: 3px;
+    border-bottom: 1px solid #0B2425; margin-bottom: 3px;
   }
-  .answer { color: #6B6862; margin-top: 8px; }
+  /* The answer word in the accent, as a revealed card shows it; its gloss
+     in graphite, like every English gloss in the app. */
+  .answer { color: #4F696A; margin-top: 8px; }
+  .answer b { color: #10777D; font-weight: inherit; }
 </style>
 <body>
   <div class="sheet">
@@ -108,7 +111,7 @@ const html = `<!doctype html>
       looked at her.</div>
     <div class="hair"></div>
     <div class="de" lang="de">&hellip; die es nur <span class="blank"></span></div>
-    <div class="answer">ansehen &middot; to look at</div>
+    <div class="answer"><b lang="de">ansehen</b> &middot; to look at</div>
   </div>
   </div>
 </body>`;
@@ -123,7 +126,7 @@ execFileSync(CHROME, [
   '--hide-scrollbars',
   '--force-device-scale-factor=1',
   '--window-size=1024,500',
-  '--default-background-color=FAF8F4',
+  '--default-background-color=ECF6F7',
   `--screenshot=${path.join(dir, 'out.png')}`,
   pathToFileURL(page).href,
 ], { stdio: 'ignore' });

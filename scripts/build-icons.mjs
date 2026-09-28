@@ -10,8 +10,10 @@
 import { deflateSync } from 'node:zlib';
 import { writeFileSync } from 'node:fs';
 
-const INK = [0x1a, 0x17, 0x14];
-const PAPER = [0xfa, 0xf8, 0xf4];
+/** The app's accent: the icon is the one place it is used at full strength. */
+const TEAL = [0x10, 0x77, 0x7d];
+/** The app's page colour, for the leaf. */
+const MINT = [0xec, 0xf6, 0xf7];
 
 /** Anti-aliasing: samples per pixel, per axis. */
 const SS = 4;
@@ -85,7 +87,7 @@ function inStem(x, y) {
   return Math.abs(x - 16) <= 0.62 - 0.26 * t && y >= 16 + HH - 0.3 && y <= 16 + HH + 2.6;
 }
 
-/** The mark, in the colour of paper: blade and stem, less the lines. */
+/** The mark, in the page colour: blade and stem, less the lines. */
 function inMark(x, y) {
   const [a, b] = unrotate(x, y);
   return (inBlade(a, b) && !inText(a, b)) || inStem(a, b);
@@ -127,11 +129,11 @@ function render(size, inset, rounded) {
 
       const total = SS * SS;
       const alpha = ground / total;
-      const paper = mark / total;
+      const leaf = mark / total;
       const at = (py * size + px) * 4;
 
       for (let c = 0; c < 3; c++) {
-        pixels[at + c] = Math.round(INK[c] * (1 - paper) + PAPER[c] * paper);
+        pixels[at + c] = Math.round(TEAL[c] * (1 - leaf) + MINT[c] * leaf);
       }
       pixels[at + 3] = Math.round(255 * alpha);
     }
@@ -208,7 +210,7 @@ for (const { file, size, inset, rounded } of ICONS) {
  * so the vector and the rasters cannot drift apart: the mark is defined once,
  * above, and this is a second rendering of it.
  */
-function svg({ ground = true, blade = PAPER, lines = INK } = {}) {
+function svg({ ground = true, blade = MINT, lines = TEAL } = {}) {
   const hex = (c) => '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('');
   const n = (v) => Number(v.toFixed(3));
 
@@ -235,7 +237,7 @@ function svg({ ground = true, blade = PAPER, lines = INK } = {}) {
   const transform = `translate(16,16) scale(${SCALE}) rotate(${TILT}) translate(-16,-16)`;
 
   const tile = ground ? `
-  <rect width="32" height="32" rx="7.04" fill="${hex(INK)}"/>` : '';
+  <rect width="32" height="32" rx="7.04" fill="${hex(TEAL)}"/>` : '';
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">${tile}
   <g transform="${transform}">
@@ -250,7 +252,7 @@ function svg({ ground = true, blade = PAPER, lines = INK } = {}) {
 writeFileSync('public/favicon.svg', svg());
 console.log('public/favicon.svg  vector');
 
-// The bare mark on no ground, ink on nothing: what the feature graphic sets
-// against paper. Same constants, so it cannot drift from the icons.
-writeFileSync('docs/play/mark.svg', svg({ ground: false, blade: INK, lines: PAPER }));
+// The bare mark on no ground, teal on nothing: what the feature graphic sets
+// against the page. Same constants, so it cannot drift from the icons.
+writeFileSync('docs/play/mark.svg', svg({ ground: false, blade: TEAL, lines: MINT }));
 console.log('docs/play/mark.svg  vector');
