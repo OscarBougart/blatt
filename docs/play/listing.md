@@ -1,5 +1,4 @@
-
-    # Play Store listing copy
+# Play Store listing copy
 
 Assets and text for the Google Play Console listing. Nothing here is served by
 the app; it is pasted into the Console by hand.
@@ -15,7 +14,7 @@ Blatt
 
 ## Short description (80 max)
 
-Read German. Peek at English only when you mean to and save words that turn into flashcards.
+Read German. Peek at English only when you mean to. Save words as cards.
 
 ## Full description (4000 max)
 
