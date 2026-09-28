@@ -68,7 +68,7 @@ export default function ReviewStart({
             type="button"
             onClick={onStart}
             disabled={deck === null}
-            className="mt-8 flex min-h-14 w-full items-center justify-center rounded-sm border border-ink text-lg transition-colors active:bg-ink/5 disabled:opacity-40 dark:border-lamp-ink dark:active:bg-lamp-ink/10"
+            className="mt-8 flex min-h-14 w-full items-center justify-center rounded-sm border border-accent text-lg text-accent transition-colors active:bg-accent/10 disabled:opacity-40 dark:border-lamp-accent dark:text-lamp-accent dark:active:bg-lamp-accent/10"
           >
             Start
           </button>

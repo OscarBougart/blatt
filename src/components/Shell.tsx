@@ -44,7 +44,7 @@ export default function Shell() {
                     <span
                       aria-hidden="true"
                       className={[
-                        'absolute inset-x-0 top-0 mx-auto h-0.5 w-6 rounded-b-sm bg-ink transition-opacity duration-200 dark:bg-lamp-ink',
+                        'absolute inset-x-0 top-0 mx-auto h-0.5 w-6 rounded-b-sm bg-accent transition-opacity duration-200 dark:bg-lamp-accent',
                         isActive ? 'opacity-100' : 'opacity-0',
                       ].join(' ')}
                     />

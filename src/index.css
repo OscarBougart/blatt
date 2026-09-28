@@ -9,16 +9,17 @@
      presence, not in voice. */
   --font-read: 'Newsreader Variable', Newsreader, Georgia, serif;
 
-  /* Ink on paper */
-  --color-paper: #faf8f4;
-  --color-ink: #141210;
-  --color-graphite: #6b6862;
-  --color-rule: #e3dfd7;
+  /* Ink on paper. Every neutral leans a little toward the teal below
+     (OKLCH hue 201), so the page and the accent read as one family. */
+  --color-paper: #f6fbfc;
+  --color-ink: #0b2425;
+  --color-graphite: #4f696a;
+  --color-rule: #d3e6e7;
 
-  /* Lamp — the dark ground */
-  --color-lamp: #1a1714;
-  --color-lamp-ink: #ede9e1;
-  --color-lamp-gph: #8b857b;
+  /* Lamp — the dark ground. Deep teal, not black. */
+  --color-lamp: #0e1c1d;
+  --color-lamp-ink: #dfeaeb;
+  --color-lamp-gph: #879d9f;
 
   /* The sill: the one surface that is not the page.
      The navigation is not part of the text, and on a ground this quiet a
@@ -26,21 +27,33 @@
      the bar read as four words that had fallen off the bottom of the page.
      A flat tone half a step off the ground separates them without a shadow
      or a gradient, neither of which this product allows. */
-  --color-sill: #f1eee7;
-  --color-sill-edge: #c4bdae;
-  --color-lamp-sill: #221e1a;
-  --color-lamp-sill-edge: #4e463b;
+  --color-sill: #e3f4f5;
+  --color-sill-edge: #9ac0c2;
+  --color-lamp-sill: #132526;
+  --color-lamp-sill-edge: #334d4f;
 
-  /* The only colour in the reading product. Flip rate, and nothing else. */
-  --color-signal: #b0472c;
+  /* The flip rate, and nothing else. Amber against the teal family, so the
+     one statistic the app keeps is the one thing that does not belong. */
+  --color-signal: #be7100;
+
+  /* Teal: where you are and what you can do. The current tab, the button
+     that starts a round, keyboard focus. Never in the reader, which carries
+     no colour at all. */
+  --color-accent: #10777d;
+  --color-lamp-accent: #5dbcc2;
 
   /* The answer on a flashcard, and only there.
      Review is not reading: the whole point of a card is to hand you one word
      at a moment when you want it found instantly, so the answer is allowed
-     to be the one thing on screen that carries colour. Kept out of the
-     reader entirely. */
-  --color-reveal: #2f6f9f;
-  --color-lamp-reveal: #7fb4dc;
+     to carry colour. It takes the accent. Kept out of the reader entirely. */
+  --color-reveal: var(--color-accent);
+  --color-lamp-reveal: var(--color-lamp-accent);
+}
+
+/* The signal is drawn straight from the variable, so the dark ground swaps
+   the variable itself. A lighter amber: the light one sinks into the lamp. */
+.dark {
+  --color-signal: #f2af48;
 }
 
 html,
@@ -57,18 +70,18 @@ body {
 }
 
 /*
- * Keyboard focus, drawn in the app's own ink rather than the browser's blue.
+ * Keyboard focus, drawn in the app's accent rather than the browser's blue.
  * `:focus-visible` rather than `:focus`, so a thumb never summons a ring the
  * reader did not ask for.
  */
 :focus-visible {
-  outline: 2px solid var(--color-ink);
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
   border-radius: 2px;
 }
 
 .dark :focus-visible {
-  outline-color: var(--color-lamp-ink);
+  outline-color: var(--color-lamp-accent);
 }
 
 /* Reading size, set from Settings. Pinch-zoom is disabled in the reader so
