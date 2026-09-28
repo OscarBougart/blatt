@@ -36,9 +36,9 @@
      one statistic the app keeps is the one thing that does not belong. */
   --color-signal: #be7100;
 
-  /* Teal: where you are and what you can do. The current tab, the button
-     that starts a round, keyboard focus. Never in the reader, which carries
-     no colour at all. */
+  /* Teal: where you are and what you can do. The current tab, the Done
+     button after a round, a pressed Tipp, keyboard focus. Never in the
+     reader, which carries no colour at all. */
   --color-accent: #10777d;
   --color-lamp-accent: #5dbcc2;
 

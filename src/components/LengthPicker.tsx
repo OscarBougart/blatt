@@ -1,14 +1,19 @@
 import Page from '@/components/Page';
-import { LIMITS } from '@/lib/reviewPrefs';
 
 const muted = 'text-graphite dark:text-lamp-gph';
+
+/** The round lengths on offer. */
+const LIMITS = [5, 10, 20];
 
 export interface LengthPickerProps {
   onPick: (limit: number) => void;
   onBack: () => void;
 }
 
-/** How long this round runs. Short by default: a round you finish is a round. */
+/**
+ * How long this round runs, asked before every round. Picking a length is
+ * what starts it. Short by default: a round you finish is a round.
+ */
 export default function LengthPicker({ onPick, onBack }: LengthPickerProps) {
   return (
     <Page title="Review" back={onBack}>

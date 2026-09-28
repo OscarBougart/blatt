@@ -4,15 +4,14 @@ import EmptyState from '@/components/EmptyState';
 import LengthPicker from '@/components/LengthPicker';
 import Page from '@/components/Page';
 import ReviewCard from '@/components/ReviewCard';
-import ReviewStart from '@/components/ReviewStart';
 import ReviewSummary from '@/components/ReviewSummary';
 import StylePicker from '@/components/StylePicker';
 import { db } from '@/db/db';
 import type { SavedWord } from '@/db/types';
 import { usePace } from '@/context/PaceContext';
+import { useFocusMode } from '@/hooks/useFocusMode';
 import { reviewSession, type SessionStyle } from '@/lib/queue';
 import { gradeCard, introduce } from '@/lib/review';
-import { readLimit, readStyle, writeLimit, writeStyle } from '@/lib/reviewPrefs';
 import { shuffle, type Grade } from '@/lib/srs';
 
 const muted = 'text-graphite dark:text-lamp-gph';
@@ -31,19 +30,19 @@ const EMPTY_TALLY: Record<Grade, number> = Object.freeze({
  */
 export default function ReviewPage() {
   const { newPerDay } = usePace();
-  /** Seeded from last time. Null only before the first round ever. */
-  const [style, setStyle] = useState<SessionStyle | null>(readStyle);
-  /** How many cards this round runs for. Null until the reader picks. */
-  const [limit, setLimit] = useState<number | null>(readLimit);
   /**
-   * Whether a round is actually running. A remembered style and length no
-   * longer deal a deck by themselves — the reader now arrives with both
-   * already answered, and starting has to stay a deliberate act.
+   * Both questions are asked every time, style first: nothing about a round
+   * is carried over from the last one. Answering the second one is what
+   * starts the round, so a round is running exactly when both are set.
    */
-  const [started, setStarted] = useState(false);
+  const [style, setStyle] = useState<SessionStyle | null>(null);
+  const [limit, setLimit] = useState<number | null>(null);
+  const started = style !== null && limit !== null;
+  // A running round, summary included, has the screen to itself: no tab bar.
+  useFocusMode(started);
   /** How each card was graded this round, for the summary. */
   const [tally, setTally] = useState<Record<Grade, number>>(EMPTY_TALLY);
-  /** Bumped to redeal: asking for another round of the same length. */
+  /** Bumped to redeal after a deal that failed. */
   const [deal, setDeal] = useState(0);
   const [queue, setQueue] = useState<SavedWord[] | null>(null);
   /**
@@ -66,7 +65,7 @@ export default function ReviewPage() {
   );
 
   useEffect(() => {
-    if (!started || style === null || limit === null) return;
+    if (style === null || limit === null) return;
     let cancelled = false;
     setFailed(false);
 
@@ -100,7 +99,7 @@ export default function ReviewPage() {
     // deliberately: changing the daily limit mid-session must not redeal the
     // cards under the reader.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [style, limit, deal, started]);
+  }, [style, limit, deal]);
 
   const card = queue?.[index];
 
@@ -123,23 +122,10 @@ export default function ReviewPage() {
     [card],
   );
 
-  const chooseStyle = (next: SessionStyle) => {
-    writeStyle(next);
-    setStyle(next);
-  };
-
-  const chooseLimit = (next: number) => {
-    writeLimit(next);
-    setLimit(next);
-    // The length is the last answer a deck needs, so picking it is also what
-    // starts the round — on a first run, and whenever the reader has gone
-    // back in to change something.
-    setStarted(true);
-  };
-
-  /** Leave the round, back to the start screen. */
+  /** Leave the round, back to where a review begins: the style picker. */
   const stop = () => {
-    setStarted(false);
+    setStyle(null);
+    setLimit(null);
     setQueue(null);
     setTally(EMPTY_TALLY);
     setIndex(0);
@@ -147,35 +133,9 @@ export default function ReviewPage() {
     setHinted(false);
   };
 
-  /** Deal another round. */
-  const again = () => {
-    setQueue(null);
-    setTally(EMPTY_TALLY);
-    setIndex(0);
-    setDeal((n) => n + 1);
-  };
+  if (style === null) return <StylePicker onPick={setStyle} />;
+  if (limit === null) return <LengthPicker onPick={setLimit} onBack={() => setStyle(null)} />;
 
-  /** Reopen both questions, starting from the style. */
-  const pickAgain = () => {
-    stop();
-    setStyle(null);
-    setLimit(null);
-  };
-
-  if (style === null) return <StylePicker onPick={chooseStyle} />;
-  if (limit === null) return <LengthPicker onPick={chooseLimit} onBack={() => setStyle(null)} />;
-
-  if (!started) {
-    return (
-      <ReviewStart
-        style={style}
-        limit={limit}
-        newPerDay={newPerDay}
-        onStart={() => setStarted(true)}
-        onChange={pickAgain}
-      />
-    );
-  }
   if (failed) {
     return (
       <Page title="Review" back={stop}>
@@ -208,7 +168,7 @@ export default function ReviewPage() {
 
   if (!card) {
     return (
-      <ReviewSummary tally={tally} onAgain={again} onDone={stop} />
+      <ReviewSummary tally={tally} onDone={stop} />
     );
   }
 
