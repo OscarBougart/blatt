@@ -8,7 +8,6 @@ import ReviewSummary from '@/components/ReviewSummary';
 import StylePicker from '@/components/StylePicker';
 import { db } from '@/db/db';
 import type { SavedWord } from '@/db/types';
-import { usePace } from '@/context/PaceContext';
 import { useFocusMode } from '@/hooks/useFocusMode';
 import { reviewSession, type SessionStyle } from '@/lib/queue';
 import { gradeCard, introduce } from '@/lib/review';
@@ -29,7 +28,6 @@ const EMPTY_TALLY: Record<Grade, number> = Object.freeze({
  * query would re-sort the deck under you as you graded it.
  */
 export default function ReviewPage() {
-  const { newPerDay } = usePace();
   /**
    * Both questions are asked every time, style first: nothing about a round
    * is carried over from the last one. Answering the second one is what
@@ -55,8 +53,8 @@ export default function ReviewPage() {
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [hinted, setHinted] = useState(false);
-  /** When the current card went on screen, for the review log. */
-  const shownAt = useRef(Date.now());
+  /** When the current card went on screen, for the review log. Set on the deal. */
+  const shownAt = useRef(0);
 
   const docs = useLiveQuery(() => db.docs.toArray(), [], []);
   const titles = useMemo(
@@ -67,14 +65,13 @@ export default function ReviewPage() {
   useEffect(() => {
     if (style === null || limit === null) return;
     let cancelled = false;
-    setFailed(false);
 
     void (async () => {
       const all = await db.words.toArray();
       if (cancelled) return;
       setSaved(all.length);
 
-      const { cards, fresh } = reviewSession(all, { limit, newPerDay, now: Date.now() });
+      const { cards, fresh } = reviewSession(all, { limit });
 
       // Stamped now, not when each card is first shown: a round abandoned
       // halfway has still spent those words out of today's allowance.
@@ -95,10 +92,7 @@ export default function ReviewPage() {
     return () => {
       cancelled = true;
     };
-    // Redrawn only when a session actually starts. `newPerDay` is left out
-    // deliberately: changing the daily limit mid-session must not redeal the
-    // cards under the reader.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Redrawn only when a round starts, or when a failed deal is retried.
   }, [style, limit, deal]);
 
   const card = queue?.[index];
@@ -122,8 +116,15 @@ export default function ReviewPage() {
     [card],
   );
 
+  /** Deal again after a deal that failed. */
+  const retry = () => {
+    setFailed(false);
+    setDeal((n) => n + 1);
+  };
+
   /** Leave the round, back to where a review begins: the style picker. */
   const stop = () => {
+    setFailed(false);
     setStyle(null);
     setLimit(null);
     setQueue(null);
@@ -139,7 +140,7 @@ export default function ReviewPage() {
   if (failed) {
     return (
       <Page title="Review" back={stop}>
-        <EmptyState action="Try again" onAction={() => setDeal((n) => n + 1)}>
+        <EmptyState action="Try again" onAction={retry}>
           The cards could not be dealt.
         </EmptyState>
       </Page>

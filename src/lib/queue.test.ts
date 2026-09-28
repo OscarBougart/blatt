@@ -1,16 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SavedWord } from '@/db/types';
-import {
-  DEFAULT_NEW_PER_DAY,
-  MAX_NEW_PER_DAY,
-  MIN_NEW_PER_DAY,
-  clampNewPerDay,
-  introducedToday,
-  reviewSession,
-  isCard,
-  isWaiting,
-  startOfDay,
-} from './queue';
+import { reviewSession, isCard, isWaiting } from './queue';
 
 const NOW = new Date('2026-08-30T14:00:00').getTime();
 const DAY = 24 * 60 * 60 * 1000;
@@ -43,25 +33,6 @@ const card = (i: number, extra: Partial<SavedWord> = {}) =>
 const waiting = (i: number, extra: Partial<SavedWord> = {}) =>
   word({ id: `n${i}`, introducedAt: undefined, createdAt: NOW - i * 1000, ...extra });
 
-describe('clampNewPerDay', () => {
-  it('holds the range', () => {
-    expect(clampNewPerDay(1)).toBe(MIN_NEW_PER_DAY);
-    expect(clampNewPerDay(50)).toBe(MAX_NEW_PER_DAY);
-    expect(clampNewPerDay(8)).toBe(8);
-  });
-
-  it('falls back to the default on nonsense', () => {
-    expect(clampNewPerDay(Number.NaN)).toBe(DEFAULT_NEW_PER_DAY);
-  });
-});
-
-describe('startOfDay', () => {
-  it('rolls over at local midnight', () => {
-    expect(new Date(startOfDay(NOW)).getHours()).toBe(0);
-    expect(startOfDay(NOW)).toBeLessThanOrEqual(NOW);
-  });
-});
-
 describe('isCard / isWaiting', () => {
   it('separates cards, queue and suspended', () => {
     expect(isCard(card(1))).toBe(true);
@@ -76,22 +47,10 @@ describe('isCard / isWaiting', () => {
   });
 });
 
-describe('introducedToday', () => {
-  it('counts only what was introduced since local midnight', () => {
-    const words = [
-      card(1, { introducedAt: NOW - 1000 }),
-      card(2, { introducedAt: NOW - 2000 }),
-      card(3, { introducedAt: startOfDay(NOW) - 1000 }),
-      waiting(4),
-    ];
-    expect(introducedToday(words, NOW)).toBe(2);
-  });
-});
-
 describe('reviewSession', () => {
   it('fills the round to the limit', () => {
     const words = [card(1), card(2), card(3), card(4), card(5), card(6)];
-    const { cards, fresh } = reviewSession(words, { limit: 5, newPerDay: 8, now: NOW });
+    const { cards, fresh } = reviewSession(words, { limit: 5 });
 
     expect(cards).toHaveLength(5);
     expect(fresh).toHaveLength(0);
@@ -103,21 +62,21 @@ describe('reviewSession', () => {
       card(2, { id: 'soon', dueAt: NOW + DAY }),
       card(3, { id: 'sooner', dueAt: NOW - DAY }),
     ];
-    const { cards } = reviewSession(words, { limit: 2, newPerDay: 0, now: NOW });
+    const { cards } = reviewSession(words, { limit: 2 });
 
     expect(cards.map((w) => w.id)).toEqual(['sooner', 'soon']);
   });
 
   it('deals cards that are not due yet rather than an empty round', () => {
     const words = [card(1, { dueAt: NOW + 30 * DAY }), card(2, { dueAt: NOW + 60 * DAY })];
-    const { cards } = reviewSession(words, { limit: 5, newPerDay: 0, now: NOW });
+    const { cards } = reviewSession(words, { limit: 5 });
 
     expect(cards).toHaveLength(2);
   });
 
   it('introduces new words oldest first', () => {
     const words = [waiting(1), waiting(2), waiting(3)];
-    const { fresh } = reviewSession(words, { limit: 10, newPerDay: 8, now: NOW });
+    const { fresh } = reviewSession(words, { limit: 10 });
 
     // `waiting(i)` is created i seconds ago, so the higher index is the older.
     expect(fresh.map((w) => w.id)).toEqual(['n3', 'n2', 'n1']);
@@ -135,28 +94,34 @@ describe('reviewSession', () => {
       card(2),
       card(3),
     ];
-    const { cards, fresh } = reviewSession(words, { limit: 6, newPerDay: 20, now: NOW });
+    const { cards, fresh } = reviewSession(words, { limit: 6 });
 
     expect(fresh).toHaveLength(3);
     expect(cards).toHaveLength(3);
   });
 
-  it('spends the daily allowance on new words, not the round limit', () => {
-    const words = [waiting(1), waiting(2), waiting(3), waiting(4)];
-    const introducedAlready = [card(1, { introducedAt: NOW - 1000 })];
-    const { fresh } = reviewSession([...words, ...introducedAlready], {
-      limit: 10,
-      newPerDay: 3,
-      now: NOW,
-    });
+  it('tops the round up with new words when there are too few cards', () => {
+    const words = [card(1), card(2), ...Array.from({ length: 20 }, (_, i) => waiting(i + 1))];
+    const { cards, fresh } = reviewSession(words, { limit: 20 });
 
-    // Three a day, one already introduced today: two left.
-    expect(fresh).toHaveLength(2);
+    // Two cards cannot fill half of twenty; new words make up the rest.
+    expect(cards).toHaveLength(2);
+    expect(fresh).toHaveLength(18);
+  });
+
+  it('has no daily cap: a big round of new words is a big round', () => {
+    const words = Array.from({ length: 25 }, (_, i) => waiting(i + 1));
+    expect(reviewSession(words, { limit: 20 }).fresh).toHaveLength(20);
+  });
+
+  it('is short only when there are not enough words saved', () => {
+    const { cards, fresh } = reviewSession([card(1), waiting(1), waiting(2)], { limit: 10 });
+    expect(cards.length + fresh.length).toBe(3);
   });
 
   it('leaves suspended words out entirely', () => {
     const words = [card(1, { suspended: true }), waiting(2, { suspended: true })];
-    const { cards, fresh } = reviewSession(words, { limit: 5, newPerDay: 8, now: NOW });
+    const { cards, fresh } = reviewSession(words, { limit: 5 });
 
     expect(cards).toHaveLength(0);
     expect(fresh).toHaveLength(0);

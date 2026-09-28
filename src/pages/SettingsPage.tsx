@@ -1,6 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
 import BackupSection from '@/components/BackupSection';
-import PaceSection from '@/components/PaceSection';
 import Page from '@/components/Page';
 import { THEME_PREFERENCES, useTheme } from '@/context/ThemeContext';
 import { TYPE_SIZES, useTypeSize } from '@/context/TypeSizeContext';
@@ -62,8 +61,6 @@ export default function SettingsPage() {
           ))}
         </div>
       </div>
-
-      <PaceSection />
 
       <BackupSection />
 
