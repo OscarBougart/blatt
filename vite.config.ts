@@ -36,7 +36,7 @@ export default defineConfig({
         short_name: 'Blatt',
         description: 'Read German. Peek at English only when you mean to.',
         theme_color: '#0E1C1D',
-        background_color: '#F6FBFC',
+        background_color: '#ECF6F7',
         display: 'standalone',
         orientation: 'portrait',
         start_url: '/',

@@ -11,7 +11,7 @@
 
   /* Ink on paper. Every neutral leans a little toward the teal below
      (OKLCH hue 201), so the page and the accent read as one family. */
-  --color-paper: #f6fbfc;
+  --color-paper: #ecf6f7;
   --color-ink: #0b2425;
   --color-graphite: #4f696a;
   --color-rule: #d3e6e7;

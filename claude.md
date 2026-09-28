@@ -113,7 +113,7 @@ Every neutral leans toward teal (OKLCH hue 201). The tokens live in
 `src/index.css`; this table must match them.
 
 ```
-paper           #F6FBFC
+paper           #ECF6F7
 ink             #0B2425
 graphite        #4F696A
 rule            #D3E6E7

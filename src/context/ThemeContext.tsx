@@ -37,7 +37,7 @@ function apply(theme: Theme) {
   document.documentElement.classList.toggle('dark', theme === 'dark');
   document
     .querySelector('meta[name="theme-color"]')
-    ?.setAttribute('content', theme === 'dark' ? '#0e1c1d' : '#f6fbfc');
+    ?.setAttribute('content', theme === 'dark' ? '#0e1c1d' : '#ecf6f7');
 }
 
 interface ThemeState {
