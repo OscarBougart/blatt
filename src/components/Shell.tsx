@@ -1,4 +1,6 @@
+import { useMemo, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
+import type { ShellContext } from '@/hooks/useFocusMode';
 
 /**
  * Four destinations, not five.
@@ -16,17 +18,34 @@ const NAV = [
 
 /** Chrome for every route except the reader, which mounts outside it. */
 export default function Shell() {
+  /** A page has asked for the screen to itself: see `useFocusMode`. */
+  const [focused, setFocused] = useState(false);
+  const context = useMemo<ShellContext>(() => ({ setFocused }), []);
+
   return (
-    <div className="min-h-full bg-paper text-ink dark:bg-lamp dark:text-lamp-ink">
+    <div
+      className={[
+        'min-h-full bg-paper text-ink dark:bg-lamp dark:text-lamp-ink',
+        // With the bar gone there is nothing to clear but the phone's own
+        // home indicator. Everything that measures from --nav-clear, the
+        // grade bar included, drops to the bottom with it.
+        focused ? '[--nav-clear:env(safe-area-inset-bottom)]' : '',
+      ].join(' ')}
+    >
       {/* The bar is 56px plus whatever the phone reserves for its own home
           indicator, and the page has to clear both. */}
       <div className="mx-auto max-w-prose px-6 pt-10 pb-[calc(var(--nav-clear)+2.5rem)]">
-        <Outlet />
+        <Outlet context={context} />
       </div>
 
       <nav
         aria-label="Sections"
-        className="fixed inset-x-0 bottom-0 border-t border-sill-edge bg-sill pb-[env(safe-area-inset-bottom)] dark:border-lamp-sill-edge dark:bg-lamp-sill"
+        aria-hidden={focused}
+        {...{ inert: focused ? '' : undefined }}
+        className={[
+          'fixed inset-x-0 bottom-0 border-t border-sill-edge bg-sill pb-[env(safe-area-inset-bottom)] transition-transform duration-200 ease-out motion-reduce:transition-none dark:border-lamp-sill-edge dark:bg-lamp-sill',
+          focused ? 'translate-y-full' : 'translate-y-0',
+        ].join(' ')}
       >
         <ul className="mx-auto flex max-w-prose">
           {NAV.map((item) => (
