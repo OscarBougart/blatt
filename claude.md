@@ -109,19 +109,30 @@ reader takes exactly the same metrics, so the flip changes the voice and not
 the shape of the column — only the colour separates them. English elsewhere in
 the app is chrome, not prose: 17px / line-height 1.55 / letter-spacing 0.01em.
 
+Every neutral leans toward teal (OKLCH hue 201). The tokens live in
+`src/index.css`; this table must match them.
+
 ```
-paper       #FAF8F4
-ink         #141210
-graphite    #6B6862
-rule        #E3DFD7
-lamp        #1A1714    (dark ground)
-lamp-ink    #EDE9E1
-lamp-gph    #8B857B
-signal      #B0472C    (flip rate only — the one coloured thing in the app)
+paper           #F6FBFC
+ink             #0B2425
+graphite        #4F696A
+rule            #D3E6E7
+sill            #E3F4F5    (tab bar ground)   sill-edge       #9AC0C2
+lamp            #0E1C1D    (dark ground)
+lamp-ink        #DFEAEB
+lamp-gph        #879D9F
+lamp-sill       #132526                       lamp-sill-edge  #334D4F
+accent          #10777D    lamp-accent  #5DBCC2
+signal          #BE7100    dark: #F2AF48   (flip rate only)
 ```
 
 No paper grain, no noise, no shadows, no gradients. The restraint is the
-aesthetic. `signal` appears exactly once in the entire product.
+aesthetic.
+
+Colour is rationed. `accent` (teal) marks where you are and what you can do:
+the current tab, the Start button, keyboard focus, and the answer on a
+flashcard. `signal` (amber) appears exactly once in the entire product, on the
+flip rate. Neither ever appears in the reading view, which carries no colour.
 
 German needs `lang="de"` and `hyphens: auto`, or long compounds tear rivers of
 whitespace through a phone-width column.
@@ -129,7 +140,7 @@ whitespace through a phone-width column.
 ## Reading view
 - Contains text and nothing else. No toolbars, no progress bar, no chrome of any
   kind while reading.
-- Dark mode is warm (`lamp`), never pure black.
+- Dark mode is deep teal (`lamp`), never pure black.
 - Font size control in settings: 16 / 19 / 22px. Needed because
   `touch-action: manipulation` disables pinch-zoom on the reading view.
 
