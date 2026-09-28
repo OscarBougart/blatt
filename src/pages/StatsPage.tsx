@@ -1,25 +1,23 @@
 import { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import FlipPlot from '@/components/FlipPlot';
+import CardGroups from '@/components/CardGroups';
 import EmptyState from '@/components/EmptyState';
 import Page from '@/components/Page';
+import TextFlips from '@/components/TextFlips';
 import { db } from '@/db/db';
-import type { ReviewLog, Session } from '@/db/types';
+import type { ReviewLog, SavedWord, Session } from '@/db/types';
 import {
-  duration,
-  formatDuration,
-  formatRate,
+  countingSince,
   formatSeconds,
-  interpret,
   medianDuration,
-  readableSessions,
   reviewsPerDay,
+  totalFlips,
 } from '@/lib/stats';
 
 const muted = 'text-graphite dark:text-lamp-gph';
 
 /**
- * Two footnotes to the flip rate: how much is arriving, and how long a card
+ * Two footnotes to the flips: how much is arriving, and how long a card
  * takes. A climbing median means the deck has got too hard.
  */
 function ReviewLoad({ logs }: { logs: ReviewLog[] }) {
@@ -27,28 +25,14 @@ function ReviewLoad({ logs }: { logs: ReviewLog[] }) {
   if (logs.length === 0) return null;
 
   const days = reviewsPerDay(logs, now);
-  const busiest = Math.max(...days.map((d) => d.count), 1);
   const median = medianDuration(logs);
-  // Counted from the strip, not from the whole log: the sentence has to
-  // describe the same thirty days the bars above it do.
+  // The last thirty days only, not the whole log: the sentence says so.
   const total = days.reduce((sum, d) => sum + d.count, 0);
   if (total === 0) return null;
 
   return (
     <section className={`type-en mt-10 ${muted}`}>
-      <div className="flex h-8 items-end gap-[2px]" aria-hidden>
-        {days.map(({ day, count }) => (
-          <span
-            key={day}
-            className="flex-1 bg-graphite dark:bg-lamp-gph"
-            // A day with no reviews keeps a hairline rather than vanishing:
-            // the gaps in the strip are as informative as the bars.
-            style={{ height: count === 0 ? 1 : `${Math.max(8, (count / busiest) * 100)}%` }}
-          />
-        ))}
-      </div>
-
-      <p className="mt-2">
+      <p>
         {total} {total === 1 ? 'review' : 'reviews'} in 30 days
         {median !== null && `, typically ${formatSeconds(median)} a card`}.
       </p>
@@ -57,19 +41,40 @@ function ReviewLoad({ logs }: { logs: ReviewLog[] }) {
 }
 
 function formatDate(at: number): string {
-  return new Date(at).toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'short',
-  });
+  return new Date(at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
 
 /**
- * Flip rate and nothing else. A second headline number would become a thing
- * to optimise, and honest flipping would be the first casualty.
+ * Flips and nothing else as the headline. A second headline number would
+ * become a thing to optimise, and honest flipping would be the first casualty.
+ * The amber is the signal, spent here and nowhere else in the app.
  */
+function Headline({ sessions }: { sessions: Session[] }) {
+  const since = countingSince(sessions);
+
+  if (since === null) {
+    return (
+      <p className={`type-en ${muted}`}>
+        Every flip to English is counted from your next reading session.
+      </p>
+    );
+  }
+
+  const flips = totalFlips(sessions);
+  return (
+    <div>
+      <p className="text-5xl leading-none tabular-nums text-signal">{flips}</p>
+      <p className={`type-en mt-3 ${muted}`}>
+        {flips === 1 ? 'flip' : 'flips'} to English since {formatDate(since)}
+      </p>
+    </div>
+  );
+}
+
 export default function StatsPage() {
   const sessions = useLiveQuery(() => db.sessions.toArray(), [], [] as Session[]);
   const logs = useLiveQuery(() => db.reviews.toArray(), [], [] as ReviewLog[]);
+  const words = useLiveQuery(() => db.words.toArray(), [], [] as SavedWord[]);
   const docs = useLiveQuery(() => db.docs.toArray(), [], []);
 
   const titles = useMemo(
@@ -77,48 +82,28 @@ export default function StatsPage() {
     [docs],
   );
 
-  const readable = useMemo(() => readableSessions(sessions ?? []), [sessions]);
-  const newestFirst = useMemo(() => readable.slice().reverse(), [readable]);
-
-  // Review history is worth showing even before any reading session has met
-  // the dwell threshold.
-  if (readable.length === 0) {
+  // Flashcards and review history are worth showing before any reading.
+  if ((sessions ?? []).length === 0) {
     return (
-      <Page title="Flip rate">
+      <Page title="Flips">
         <EmptyState to="/" action="Find something to read">
-          No reading sessions yet. Read a few paragraphs and this fills in.
+          No reading yet. Read a text, and every flip to English is counted here.
         </EmptyState>
+        <CardGroups words={words ?? []} logs={logs ?? []} />
         <ReviewLoad logs={logs ?? []} />
       </Page>
     );
   }
 
   return (
-    <Page title="Flip rate">
-      <FlipPlot sessions={readable} />
+    <Page title="Flips">
+      <Headline sessions={sessions ?? []} />
 
-      <p className="type-en mt-8">{interpret(readable)}</p>
+      <TextFlips sessions={sessions ?? []} titles={titles} />
+
+      <CardGroups words={words ?? []} logs={logs ?? []} />
 
       <ReviewLoad logs={logs ?? []} />
-
-      <ul className="mt-8">
-        {newestFirst.map((session) => (
-          <li
-            key={session.id}
-            className="flex min-h-14 items-baseline justify-between gap-4 border-b border-rule py-3 dark:border-lamp-gph/25"
-          >
-            <span className="min-w-0">
-              <span className="block truncate">{titles.get(session.docId) ?? 'Deleted text'}</span>
-              <span className={`type-en block ${muted}`}>
-                {formatDate(session.startedAt)} · {formatDuration(duration(session))} ·{' '}
-                {session.paragraphsViewed}{' '}
-                {session.paragraphsViewed === 1 ? 'paragraph' : 'paragraphs'}
-              </span>
-            </span>
-            <span className="shrink-0 tabular-nums">{formatRate(session.flipRate)}</span>
-          </li>
-        ))}
-      </ul>
     </Page>
   );
 }

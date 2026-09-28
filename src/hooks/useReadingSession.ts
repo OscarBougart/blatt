@@ -3,6 +3,11 @@ import { db } from '@/db/db';
 import { flipRate } from '@/lib/flipRate';
 import { newId } from '@/lib/id';
 
+/** Nothing read and nothing flipped: not a session worth a row. */
+function isEmpty(totals: { paragraphsViewed: number; paragraphsFlipped: number; flips: number }) {
+  return totals.paragraphsViewed === 0 && totals.paragraphsFlipped === 0 && totals.flips === 0;
+}
+
 /** A session with no activity for this long is closed where it stopped. */
 export const IDLE_MS = 5 * 60 * 1000;
 
@@ -12,8 +17,10 @@ const IDLE_CHECK_MS = 30 * 1000;
  * Opens a Session when the reader mounts and closes it on unmount, after five
  * minutes of no activity, or as soon as the page is hidden.
  *
- * Both counters are sets of paragraph indices, not running totals, so
+ * The two paragraph counters are sets of indices, not running totals, so
  * re-reading a paragraph does not inflate either side of the flip rate.
+ * `flips` is the exception, and deliberately so: it counts every flip to
+ * English, because each one is a moment the reader reached for it.
  */
 export function useReadingSession(docId: string | undefined) {
   const sessionId = useRef<string | null>(null);
@@ -22,13 +29,19 @@ export function useReadingSession(docId: string | undefined) {
   const written = useRef(false);
   const viewed = useRef(new Set<number>());
   const flipped = useRef(new Set<number>());
+  const flips = useRef(0);
   const lastActivity = useRef(Date.now());
   const mounted = useRef(true);
 
   const counts = () => {
     const v = viewed.current.size;
     const f = flipped.current.size;
-    return { paragraphsViewed: v, paragraphsFlipped: f, flipRate: flipRate(v, f) };
+    return {
+      paragraphsViewed: v,
+      paragraphsFlipped: f,
+      flipRate: flipRate(v, f),
+      flips: flips.current,
+    };
   };
 
   /**
@@ -54,7 +67,7 @@ export function useReadingSession(docId: string | undefined) {
     if (!id || !docId) return;
 
     const totals = counts();
-    if (totals.paragraphsViewed === 0 && totals.paragraphsFlipped === 0) return;
+    if (isEmpty(totals)) return;
 
     written.current = true;
     void db.sessions.put({
@@ -73,6 +86,7 @@ export function useReadingSession(docId: string | undefined) {
     written.current = false;
     viewed.current = new Set();
     flipped.current = new Set();
+    flips.current = 0;
   }, [docId]);
 
   const close = useCallback(() => {
@@ -83,7 +97,7 @@ export function useReadingSession(docId: string | undefined) {
     const totals = counts();
     // A session in which nothing was read is not a session. It was never
     // written, so there is nothing to clean up either.
-    if (totals.paragraphsViewed === 0 && totals.paragraphsFlipped === 0) {
+    if (isEmpty(totals)) {
       if (written.current) void db.sessions.delete(id);
       return;
     }
@@ -115,6 +129,13 @@ export function useReadingSession(docId: string | undefined) {
     },
     [touch, persist],
   );
+
+  /** One flip to English. Counted every time, not once per paragraph. */
+  const countFlip = useCallback(() => {
+    touch();
+    flips.current += 1;
+    persist();
+  }, [touch, persist]);
 
   useEffect(() => {
     mounted.current = true;
@@ -151,5 +172,5 @@ export function useReadingSession(docId: string | undefined) {
     };
   }, [close]);
 
-  return { markViewed, markFlipped, touch };
+  return { markViewed, markFlipped, countFlip, touch };
 }

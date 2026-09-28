@@ -1,16 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { Session } from '@/db/types';
 import {
-  combinedRate,
-  duration,
-  formatDuration,
-  formatRate,
-  interpret,
+  countingSince,
+  flipsByText,
   formatSeconds,
   medianDuration,
-  plotPoints,
-  readableSessions,
   reviewsPerDay,
+  totalFlips,
 } from './stats';
 
 const START = 1_700_000_000_000;
@@ -30,142 +26,34 @@ function session(overrides: Partial<Session> = {}): Session {
   };
 }
 
-describe('duration', () => {
-  it('measures a closed session', () => {
-    expect(duration(session())).toBe(6 * 60_000);
+describe('flips', () => {
+  const counted = [
+    session({ id: 'a', docId: 'd1', flips: 4, startedAt: START + 1000 }),
+    session({ id: 'b', docId: 'd2', flips: 9, startedAt: START + 2000 }),
+    session({ id: 'c', docId: 'd1', flips: 3, startedAt: START + 3000 }),
+  ];
+  // From before flips were counted: no count at all, which is not zero.
+  const uncounted = session({ id: 'old', docId: 'd3', startedAt: START });
+
+  it('totals only sessions that were counted', () => {
+    expect(totalFlips([...counted, uncounted])).toBe(16);
   });
 
-  it('is zero for a session still open', () => {
-    expect(duration(session({ endedAt: undefined }))).toBe(0);
-  });
-});
-
-describe('formatDuration', () => {
-  it('rounds to minutes and hours', () => {
-    expect(formatDuration(20_000)).toBe('under a minute');
-    expect(formatDuration(6 * 60_000)).toBe('6 min');
-    expect(formatDuration(72 * 60_000)).toBe('1 h 12 min');
-  });
-});
-
-describe('formatRate', () => {
-  it('is a whole percentage', () => {
-    expect(formatRate(0)).toBe('0%');
-    expect(formatRate(0.384)).toBe('38%');
-    expect(formatRate(1)).toBe('100%');
-  });
-});
-
-describe('readableSessions', () => {
-  it('drops sessions too short to mean anything', () => {
-    const kept = readableSessions([
-      session({ id: 'a', paragraphsViewed: 2 }),
-      session({ id: 'b', paragraphsViewed: 3 }),
-    ]);
-    expect(kept.map((s) => s.id)).toEqual(['b']);
+  it('dates counting from the first counted session', () => {
+    expect(countingSince([...counted, uncounted])).toBe(START + 1000);
+    expect(countingSince([uncounted])).toBeNull();
   });
 
-  it('drops sessions that never finished', () => {
-    const kept = readableSessions([
-      session({ id: 'open', endedAt: undefined }),
-      session({ id: 'closed' }),
-    ]);
-    expect(kept.map((s) => s.id)).toEqual(['closed']);
-  });
-
-  it('orders oldest first', () => {
-    const kept = readableSessions([
-      session({ id: 'new', startedAt: START + 1000 }),
-      session({ id: 'old', startedAt: START }),
-    ]);
-    expect(kept.map((s) => s.id)).toEqual(['old', 'new']);
-  });
-});
-
-describe('combinedRate', () => {
-  it('weights by paragraphs read, not by session', () => {
-    const rate = combinedRate([
-      session({ paragraphsViewed: 100, paragraphsFlipped: 10 }),
-      session({ paragraphsViewed: 4, paragraphsFlipped: 4 }),
-    ]);
-    // 14 / 104, not the 55% a naive average of the two rates would give.
-    expect(rate).toBeCloseTo(14 / 104, 10);
-  });
-
-  it('is zero with nothing read', () => {
-    expect(combinedRate([])).toBe(0);
-  });
-});
-
-describe('plotPoints', () => {
-  it('pins the axis to 0-1 rather than scaling to the data', () => {
-    const points = plotPoints(
-      [
-        session({ paragraphsViewed: 10, paragraphsFlipped: 0 }),
-        session({ paragraphsViewed: 10, paragraphsFlipped: 10 }),
-      ],
-      100,
-      50,
-    );
-    expect(points).toEqual([
-      { x: 0, y: 50 },
-      { x: 100, y: 0 },
+  it('sums flips per text, most first', () => {
+    expect(flipsByText([...counted, uncounted])).toEqual([
+      { docId: 'd2', flips: 9 },
+      { docId: 'd1', flips: 7 },
     ]);
   });
 
-  it('centres a single session', () => {
-    const points = plotPoints([session({ paragraphsViewed: 10, paragraphsFlipped: 5 })], 100, 50);
-    expect(points).toEqual([{ x: 50, y: 25 }]);
-  });
-
-  it('has nothing to draw with no sessions', () => {
-    expect(plotPoints([], 100, 50)).toEqual([]);
-  });
-});
-
-describe('interpret', () => {
-  it('says so when there is nothing', () => {
-    expect(interpret([])).toBe('No reading sessions yet.');
-  });
-
-  it('reads plainly for one session', () => {
-    expect(interpret([session({ paragraphsViewed: 10, paragraphsFlipped: 4 })])).toBe(
-      'In one session you read 40% of paragraphs in English.',
-    );
-  });
-
-  it('needs ten sessions before it claims a trend', () => {
-    const few = Array.from({ length: 9 }, (_, i) => session({ id: `s${i}` }));
-    expect(interpret(few)).toBe('Across 9 sessions you read 40% of paragraphs in English.');
-  });
-
-  it('reports a fall once there is enough to compare', () => {
-    const sessions = [
-      ...Array.from({ length: 5 }, () =>
-        session({ paragraphsViewed: 10, paragraphsFlipped: 6 }),
-      ),
-      ...Array.from({ length: 5 }, () =>
-        session({ paragraphsViewed: 10, paragraphsFlipped: 2 }),
-      ),
-    ];
-    expect(interpret(sessions)).toContain('over the last 5 it was 20%, less than before');
-  });
-
-  it('calls a small move no move at all', () => {
-    const sessions = [
-      ...Array.from({ length: 5 }, () =>
-        session({ paragraphsViewed: 100, paragraphsFlipped: 40 }),
-      ),
-      ...Array.from({ length: 5 }, () =>
-        session({ paragraphsViewed: 100, paragraphsFlipped: 41 }),
-      ),
-    ];
-    expect(interpret(sessions)).toContain('about the same as before');
-  });
-
-  it('never congratulates', () => {
-    const sessions = Array.from({ length: 12 }, () => session());
-    expect(interpret(sessions)).not.toMatch(/well done|great|keep|nice|congrat|streak/i);
+  it('keeps a text read without a single flip', () => {
+    const clean = session({ id: 'z', docId: 'd4', flips: 0 });
+    expect(flipsByText([clean])).toEqual([{ docId: 'd4', flips: 0 }]);
   });
 });
 

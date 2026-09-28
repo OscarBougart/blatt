@@ -17,7 +17,7 @@ anyone judging the craft of the build.
 Read German texts with a hidden English translation, and turn the words saved
 along the way into spaced-repetition flashcards. Local first: no account, no
 server, works offline. Success is a reader who stays in German longer, and a
-flip rate that falls over time.
+flip count that falls over time.
 
 ## Brand Personality
 
@@ -42,8 +42,9 @@ reader flips to English.
    wrong even if it is more convenient.
 2. **The text is the interface.** While reading, nothing competes with the
    column. Chrome exists only off the reading screen.
-3. **One honest signal.** A single accent colour, used for the one statistic
-   the app keeps (flip rate). Colour is information, not decoration.
+3. **One honest signal.** A single signal colour, used for the one statistic
+   the app keeps: how often you flipped to English. Colour is information,
+   not decoration.
 4. **Readable in a year.** Visual rules stay few and explicit so the system can
    be understood from the tokens alone.
 

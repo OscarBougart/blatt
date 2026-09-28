@@ -140,6 +140,11 @@ export interface Session {
   paragraphsFlipped: number;
   /** paragraphsFlipped / paragraphsViewed. Stored, not yet shown. */
   flipRate: number;
+  /**
+   * Every flip to English, glances included. What Stats shows. Absent on
+   * sessions from before it was counted, which is not the same as zero.
+   */
+  flips?: number;
 }
 
 /**

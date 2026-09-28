@@ -95,6 +95,7 @@ interface Session {
   endedAt?: number;
   paragraphsViewed: number;   // German paragraphs that met the dwell threshold
   paragraphsFlipped: number;  // unique paragraph indices read in English
+  flips?: number;             // every flip to English; absent before it was counted
 }
 ```
 
@@ -123,16 +124,17 @@ lamp-ink        #DFEAEB
 lamp-gph        #879D9F
 lamp-sill       #132526                       lamp-sill-edge  #334D4F
 accent          #10777D    lamp-accent  #5DBCC2
-signal          #BE7100    dark: #F2AF48   (flip rate only)
+signal          #BE7100    dark: #F2AF48   (flip count only)
 ```
 
 No paper grain, no noise, no shadows, no gradients. The restraint is the
 aesthetic.
 
 Colour is rationed. `accent` (teal) marks where you are and what you can do:
-the current tab, the Start button, keyboard focus, and the answer on a
-flashcard. `signal` (amber) appears exactly once in the entire product, on the
-flip rate. Neither ever appears in the reading view, which carries no colour.
+the current tab, the Done button after a round, a pressed Tipp, keyboard focus,
+and the answer on a flashcard. `signal` (amber) appears exactly once in the
+entire product, on the flip count. Neither ever appears in the reading view,
+which carries no colour.
 
 German needs `lang="de"` and `hyphens: auto`, or long compounds tear rivers of
 whitespace through a phone-width column.
@@ -146,7 +148,7 @@ whitespace through a phone-width column.
 
 ## Non-goals (do not build these)
 - Streaks, XP, badges, levels, achievements, any gamification.
-  One honest statistic only: flip rate.
+  One honest statistic only: how many times you flipped to English.
 - Cloud sync, sharing, social features, user accounts.
 - Text-to-speech.
 - Grammar explanations or conjugation tables.

@@ -32,7 +32,7 @@
   --color-lamp-sill: #132526;
   --color-lamp-sill-edge: #334d4f;
 
-  /* The flip rate, and nothing else. Amber against the teal family, so the
+  /* The flip count, and nothing else. Amber against the teal family, so the
      one statistic the app keeps is the one thing that does not belong. */
   --color-signal: #be7100;
 

@@ -56,7 +56,7 @@ export default function ReaderPage() {
   const savedKeys = useMemo(() => new Set(saved.keys()), [saved]);
 
   const count = doc?.pairs.length ?? 0;
-  const { markViewed, markFlipped, touch } = useReadingSession(docId);
+  const { markViewed, markFlipped, countFlip, touch } = useReadingSession(docId);
 
   // Each pane scrolls independently, so each gets its own tracker; only the
   // one on screen is live. Destructured deliberately — the hook returns a
@@ -203,7 +203,10 @@ export default function ReaderPage() {
       else setEnCurrent(position.index);
 
       sideRef.current = to;
-      if (to === 'en') seen();
+      if (to === 'en') {
+        seen();
+        countFlip();
+      }
       touch();
       setSide(to);
     },
@@ -216,6 +219,7 @@ export default function ReaderPage() {
       setEnCurrent,
       touch,
       seen,
+      countFlip,
     ],
   );
 
