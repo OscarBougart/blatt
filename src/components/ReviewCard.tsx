@@ -24,6 +24,10 @@ const answer = 'text-reveal dark:text-lamp-reveal';
 /** Quiet, bordered, thumb-sized. A control, not a heading. */
 const button = `min-h-12 rounded-sm border px-4 transition-colors active:bg-ink/5 dark:active:bg-lamp-ink/10 ${rule} ${muted}`;
 
+/** The same control once pressed: the accent, and a wash of it behind. */
+const pressed =
+  'min-h-12 rounded-sm border px-4 border-accent bg-accent/10 text-accent dark:border-lamp-accent dark:bg-lamp-accent/15 dark:text-lamp-accent';
+
 /**
  * The target word, hidden or shown, taking the same space either way:
  * transparent glyphs over a rule, not a blank measured in `ch`. A `ch` blank
@@ -91,15 +95,12 @@ export default function ReviewCard({
               )}
             </p>
           )}
-
-          {/* The hint proper: what this one word means. */}
-          {hinted && !revealed && definition && (
-            <p className={`type-en mt-4 ${muted}`}>{definition}</p>
-          )}
         </div>
 
         {revealed ? (
-          <div className={`mt-8 border-t pt-6 ${rule}`}>
+          // No rule between question and answer: the space alone separates
+          // them, and a line across the card read as the card ending there.
+          <div className="mt-8">
             {/* The lemma is already above on a word card; only the inflected
                 form it was read in is worth adding. */}
             {wordOnly ? (
@@ -132,14 +133,25 @@ export default function ReviewCard({
             <p className={`type-en mt-4 ${muted}`}>{docTitle}</p>
           </div>
         ) : (
-          <div className={`mt-8 flex gap-3 border-t pt-6 ${rule}`}>
-            <button type="button" onClick={onReveal} className={button}>
+          <div className="mt-8 flex items-center gap-4">
+            <button type="button" onClick={onReveal} className={`shrink-0 ${button}`}>
               Show
             </button>
-            {canHint && !hinted && (
-              <button type="button" onClick={onHint} className={button}>
+            {/* Tipp stays where it was once pressed, and shows that it was:
+                the reader can see they asked for help on this card. The hint
+                sits beside it rather than pushing the sentence around. */}
+            {canHint && (
+              <button
+                type="button"
+                onClick={onHint}
+                aria-pressed={hinted}
+                className={`shrink-0 ${hinted ? pressed : button}`}
+              >
                 Tipp
               </button>
+            )}
+            {canHint && hinted && (
+              <p className={`type-en min-w-0 flex-1 ${muted}`}>{definition}</p>
             )}
           </div>
         )}
