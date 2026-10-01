@@ -6,7 +6,7 @@ const WINDOW_MS = 320;
 /**
  * Double-tap a word. One handler on the pane, not one per word.
  *
- * `touch-action: manipulation` on the reading view removes the browser's
+ * `touch-action: pan-y` on the reading view removes the browser's
  * 300ms click delay and its double-tap zoom, so a plain click event is both
  * fast and safe to count here.
  */

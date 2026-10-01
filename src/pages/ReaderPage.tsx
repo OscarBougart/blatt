@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { db } from '@/db/db';
 import type { Doc } from '@/db/types';
 import ReaderChrome from '@/components/ReaderChrome';
 import ReaderMissing from '@/components/ReaderMissing';
 import ReaderTrack from '@/components/ReaderTrack';
+import ReaderTutorial from '@/components/ReaderTutorial';
 import { useCurrentParagraph } from '@/hooks/useCurrentParagraph';
 import { useDwell } from '@/hooks/useDwell';
 import { useReadingSession } from '@/hooks/useReadingSession';
+import { useBack } from '@/hooks/useBack';
 import { useSavedWords } from '@/hooks/useSavedWords';
 import { useSwipe } from '@/hooks/useSwipe';
 import { useFlipHint } from '@/hooks/useFlipHint';
@@ -34,7 +36,7 @@ function scrollToParagraph(pane: HTMLElement | null, index: number) {
  */
 export default function ReaderPage() {
   const { docId } = useParams<{ docId: string }>();
-  const navigate = useNavigate();
+  const back = useBack('/');
   /**
    * `undefined` while the lookup is in flight, `null` once it has come back
    * empty. Collapsing the two into `null` meant a deleted or mistyped id
@@ -244,9 +246,9 @@ export default function ReaderPage() {
         return;
       }
 
-      void navigate('/');
+      back();
     },
-    [flip, navigate],
+    [flip, back],
   );
   const swipe = useSwipe(onSwipe);
 
@@ -285,9 +287,11 @@ export default function ReaderPage() {
       <ReaderChrome
         side={side}
         pane={side === 'de' ? dePane : enPane}
-        onExit={() => void navigate('/')}
+        onExit={back}
         onFlip={() => flip(side === 'de' ? 'en' : 'de')}
       />
+
+      <ReaderTutorial side={side} savedCount={saved.size} />
     </div>
   );
 }

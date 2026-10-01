@@ -26,13 +26,13 @@ def twaManifest = [
     launchUrl: '/', // The start path for the TWA. Must be relative to the domain.
     name: 'Blatt', // The application name.
     launcherName: 'Blatt', // The name shown on the Android Launcher.
-    themeColor: '#1A1714', // The color used for the status bar.
-    themeColorDark: '#1A1714', // The color used for the dark status bar.
-    navigationColor: '#1A1714', // The color used for the navigation bar.
-    navigationColorDark: '#1A1714', // The color used for the dark navbar.
-    navigationDividerColor: '#1A1714', // The navbar divider color.
-    navigationDividerColorDark: '#1A1714', // The dark navbar divider color.
-    backgroundColor: '#FAF8F4', // The color used for the splash screen background.
+    themeColor: '#0E1C1D', // The color used for the status bar.
+    themeColorDark: '#0E1C1D', // The color used for the dark status bar.
+    navigationColor: '#0E1C1D', // The color used for the navigation bar.
+    navigationColorDark: '#0E1C1D', // The color used for the dark navbar.
+    navigationDividerColor: '#0E1C1D', // The navbar divider color.
+    navigationDividerColorDark: '#0E1C1D', // The dark navbar divider color.
+    backgroundColor: '#ECF6F7', // The color used for the splash screen background.
     enableNotifications: false, // Set to true to enable notification delegation.
     // Every shortcut must include the following fields:
     // - name: String that will show up in the shortcut.
@@ -55,9 +55,9 @@ android {
     namespace "dev.bougart.blatt"
     defaultConfig {
         applicationId "dev.bougart.blatt"
-        minSdkVersion 23
+        minSdkVersion 24
         targetSdkVersion 36
-        versionCode 1
+        versionCode 2
         versionName "1.0.0"
 
         // The name for the application

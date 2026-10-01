@@ -101,7 +101,8 @@ export default function BackupSection() {
       <input
         ref={file}
         type="file"
-        accept="application/json,.json"
+        // No `accept` filter. Android pickers often label a .json file as a
+        // generic type and grey it out; parseBackup rejects anything else.
         onChange={(event) => void onImport(event)}
         className="hidden"
       />

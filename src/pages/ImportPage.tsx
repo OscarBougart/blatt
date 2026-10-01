@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Page from '@/components/Page';
+import { useBack } from '@/hooks/useBack';
 import LibrarySection from '@/components/LibrarySection';
 import { db } from '@/db/db';
 import { pairParagraphs, type PairResult } from '@/lib/pair';
@@ -15,6 +16,7 @@ const field =
 export default function ImportPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const back = useBack('/');
   const [title, setTitle] = useState('');
   const [theme, setTheme] = useState('');
   const [de, setDe] = useState('');
@@ -91,7 +93,9 @@ export default function ImportPage() {
       const lemmaMap = await importDocument(result.pairs, setProgress);
       await db.docs.update(id, { lemmaMap });
 
-      navigate(`/read/${id}`);
+      // Replace, not push: the form is finished with, and the reader's back
+      // should lead to the library rather than to a form already submitted.
+      navigate(`/read/${id}`, { replace: true });
     } catch (cause) {
       // The pasted text is still in the form. Say so rather than stranding
       // them on "Importing…".
@@ -118,7 +122,7 @@ export default function ImportPage() {
   return (
     // Import left the tab bar, so this screen is now reached from the library
     // and has to carry its own way back, the same as Settings does.
-    <Page title="Import" back={() => void navigate('/')}>
+    <Page title="Import" back={back}>
       {shared && (
         <p role="status" className="type-en mb-6 text-graphite dark:text-lamp-gph">
           {shared}

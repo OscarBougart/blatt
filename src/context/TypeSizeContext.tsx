@@ -11,7 +11,7 @@ import {
 /**
  * Reading sizes.
  *
- * This control exists because `touch-action: manipulation` — needed so that
+ * This control exists because `touch-action: pan-y` — needed so that
  * double-tap saves a word instead of zooming the page — also disables
  * pinch-zoom. Taking away the reader's ability to resize text and not giving
  * it back would be a bad trade.

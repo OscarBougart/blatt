@@ -21,27 +21,39 @@
     "alias": "blatt"
   },
   "appVersionName": "1.0.0",
-  "appVersion": "1.0.0",
-  "appVersionCode": 1,
+  "appVersionCode": 2,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
   "webManifestUrl": "https://blatt-mu.vercel.app/manifest.webmanifest",
   "fallbackType": "customtabs",
   "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
   "enableSiteSettingsShortcut": true,
   "isChromeOSOnly": false,
   "isMetaQuest": false,
   "fullScopeUrl": "https://blatt-mu.vercel.app/",
-  "minSdkVersion": 23,
-  "orientation": "portrait",
+  "minSdkVersion": 24,
   "shareTarget": {
     "action": "https://blatt-mu.vercel.app/share-target",
     "method": "POST",
     "enctype": "multipart/form-data",
     "params": {
       "files": [
-        { "name": "file", "accept": ["application/json"] }
+        {
+          "name": "file",
+          "accept": [
+            "application/json"
+          ]
+        }
       ]
     }
-  }
+  },
+  "orientation": "portrait",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "displayOverride": [],
+  "appVersion": "1.0.0"
 }

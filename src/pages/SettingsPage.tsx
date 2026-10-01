@@ -1,18 +1,22 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import BackupSection from '@/components/BackupSection';
 import Page from '@/components/Page';
 import { THEME_PREFERENCES, useTheme } from '@/context/ThemeContext';
 import { TYPE_SIZES, useTypeSize } from '@/context/TypeSizeContext';
+import { useBack } from '@/hooks/useBack';
+import { resetTutorial } from '@/lib/tutorial';
 
 const THEME_LABELS = { light: 'Light', dark: 'Dark', system: 'System' } as const;
 
 export default function SettingsPage() {
-  const navigate = useNavigate();
+  const back = useBack('/');
   const { preference, setPreference } = useTheme();
   const { size, setSize } = useTypeSize();
+  const [tutorialReset, setTutorialReset] = useState(false);
 
   return (
-    <Page title="Settings" back={() => void navigate('/')}>
+    <Page title="Settings" back={back}>
       {/* Three states rather than a switch, because the useful third one is
           neither: a phone that goes dark at dusk should take the app with it. */}
       <div className="flex min-h-12 items-center justify-between border-b border-rule dark:border-lamp-gph/25">
@@ -61,6 +65,24 @@ export default function SettingsPage() {
           ))}
         </div>
       </div>
+
+      {/* The reader teaches its two gestures once. This is how to be taught
+          again, or to hand the phone to someone who has never seen it. */}
+      <button
+        type="button"
+        onClick={() => {
+          resetTutorial();
+          setTutorialReset(true);
+        }}
+        className="flex min-h-12 w-full items-center border-b border-rule text-left dark:border-lamp-gph/25"
+      >
+        Show the tutorial again
+      </button>
+      {tutorialReset && (
+        <p role="status" className="type-en mt-3 text-graphite dark:text-lamp-gph">
+          It will run the next time you open a text.
+        </p>
+      )}
 
       <BackupSection />
 

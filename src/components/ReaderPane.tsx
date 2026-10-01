@@ -39,10 +39,13 @@ export default function ReaderPane({
       aria-hidden={!active}
       {...{ inert: active ? undefined : '' }}
       className="relative h-full w-1/2 select-none overflow-y-auto overscroll-contain"
-      // Kills double-tap zoom, which fights the save gesture, and the 300ms
-      // click delay with it. It also kills pinch-zoom — hence the type-size
-      // control in Settings.
-      style={{ touchAction: 'manipulation' }}
+      // pan-y: the browser scrolls vertically and leaves every horizontal drag
+      // to useSwipe. `manipulation` allowed horizontal panning too, and Chrome
+      // on Android then claimed the drag and cancelled the pointer after a few
+      // pixels, long before a swipe could register, so the flip did nothing.
+      // pan-y also kills double-tap zoom, which fights the save gesture, the
+      // 300ms click delay, and pinch-zoom — hence the type-size control.
+      style={{ touchAction: 'pan-y' }}
     >
       <article
         className={`mx-auto max-w-[34rem] px-7 pb-[40vh] pt-16 ${

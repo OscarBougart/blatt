@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import Page from '@/components/Page';
 import { db } from '@/db/db';
+import { useBack } from '@/hooks/useBack';
 import type { SavedWord } from '@/db/types';
 import { deleteWord, retryLookup, setLemma, setNote } from '@/lib/corrections';
 import { applySentence, findBetterSentence } from '@/lib/reroll';
@@ -34,8 +35,7 @@ function Context({ word }: { word: SavedWord }) {
  */
 export default function WordDetailPage() {
   const { wordId } = useParams();
-  const navigate = useNavigate();
-  const back = () => void navigate('/words');
+  const back = useBack('/words');
 
   const word = useLiveQuery(
     async () => (wordId ? ((await db.words.get(wordId)) ?? null) : null),
@@ -227,7 +227,7 @@ export default function WordDetailPage() {
           void run(async () => {
             await deleteWord(word.id);
             // The page it was showing is gone; going back is the only sane end.
-            void navigate('/words');
+            back();
           })
         }
         className={`min-h-12 min-w-12 text-left ${muted}`}

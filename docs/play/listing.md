@@ -14,7 +14,7 @@ Blatt
 
 ## Short description (80 max)
 
-Read German. Peek at English only when you mean to. Save words as cards.
+Read German, peek at English sparingly, and review words with spaced repetition.
 
 ## Full description (4000 max)
 
@@ -40,14 +40,15 @@ kind while you are reading.
 
 Flip. Any paragraph turns over to English and back. Never both at once.
 
-Save. Tap a word and it is saved with the full sentence it came from, and a
+Save. Double-tap a word and it is saved with the full sentence it came from, and a
 definition looked up for you. It remembers the word as it appeared in the text
 and the dictionary form underneath it, so "gegangen" and "ging" both find
 "gehen".
 
 Review. Saved words come back as spaced-repetition flashcards, scheduled with
 SM-2. Cards show the sentence with the word blanked out, so you are recalling
-it in context rather than staring at a list. Rounds of 5, 10 or 20.
+it in context rather than staring at a list, or just its meaning when you want
+to test the word alone. Rounds of 5, 10 or 20.
 
 Import. Bring your own text. Paste it, or share a file to Blatt from anywhere
 on your phone.
@@ -56,9 +57,9 @@ on your phone.
 ONE HONEST STATISTIC
 
 No streaks. No XP. No badges, levels or achievements. Blatt tracks exactly one
-number: your flip rate — how often you needed the English. It is the only
-measure that tells you anything true, and it is meant to be slightly
-uncomfortable.
+number: how many times you flipped to English. Every flip counts, a glance as
+much as a paragraph. It is the only measure that tells you anything true, and
+it is meant to be slightly uncomfortable.
 
 
 BUILT SMALL AND LOCAL

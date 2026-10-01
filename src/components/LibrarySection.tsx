@@ -39,7 +39,7 @@ export default function LibrarySection() {
     setBusy(entry.slug);
     setError(null);
     try {
-      navigate(`/read/${await installLibraryText(entry.slug)}`);
+      navigate(`/read/${await installLibraryText(entry.slug)}`, { replace: true });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'That text could not be added.');
       setBusy(null);

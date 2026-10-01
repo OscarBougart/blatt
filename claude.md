@@ -142,9 +142,13 @@ whitespace through a phone-width column.
 ## Reading view
 - Contains text and nothing else. No toolbars, no progress bar, no chrome of any
   kind while reading.
+  Two exceptions, both graphite and both taken away: the exit arrow that fades
+  after opening, and the first-run tutorial line (flip, return, save), which
+  disappears for good once done or skipped. Replayable from Settings.
 - Dark mode is deep teal (`lamp`), never pure black.
 - Font size control in settings: 16 / 19 / 22px. Needed because
-  `touch-action: manipulation` disables pinch-zoom on the reading view.
+  `touch-action: pan-y` disables pinch-zoom on the reading view. It must stay
+  pan-y: anything that lets the browser pan horizontally breaks the flip swipe.
 
 ## Non-goals (do not build these)
 - Streaks, XP, badges, levels, achievements, any gamification.

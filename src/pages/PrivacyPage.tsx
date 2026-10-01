@@ -1,15 +1,15 @@
-import { useNavigate } from 'react-router-dom';
 import Page from '@/components/Page';
+import { useBack } from '@/hooks/useBack';
 
 /** Required by the Play Store listing, and the honest answer is short: the
  *  app has no backend, so there is almost nothing to disclose. Kept as a
  *  route rather than a hosted document so it ships and versions with the
  *  code it describes. */
 export default function PrivacyPage() {
-  const navigate = useNavigate();
+  const back = useBack('/settings');
 
   return (
-    <Page title="Privacy" back={() => navigate('/settings')}>
+    <Page title="Privacy" back={back}>
       <div className="type-en space-y-4 text-ink dark:text-lamp-ink">
         <p>
           Blatt has no accounts, no backend and no analytics. Nothing you read,
