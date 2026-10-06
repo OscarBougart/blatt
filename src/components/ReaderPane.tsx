@@ -38,7 +38,8 @@ export default function ReaderPane({
       aria-label={german ? 'German' : 'English'}
       aria-hidden={!active}
       {...{ inert: active ? undefined : '' }}
-      className="relative h-full w-1/2 select-none overflow-y-auto overscroll-contain"
+      // No callout: iOS would otherwise answer a held word with its own menu.
+      className="relative h-full w-1/2 select-none overflow-y-auto overscroll-contain [-webkit-touch-callout:none]"
       // pan-y: the browser scrolls vertically and leaves every horizontal drag
       // to useSwipe. `manipulation` allowed horizontal panning too, and Chrome
       // on Android then claimed the drag and cancelled the pointer after a few

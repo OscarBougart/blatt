@@ -16,6 +16,10 @@ on screen at the same time.
 Every design decision defers to this rule. If a feature makes English easier to
 reach, it is wrong, even if it is more convenient.
 
+One deliberate exception, chosen by the owner: press and hold a German word to
+see its dictionary definition in a bubble over the text. It is a single word's
+gloss, it takes a held press (never a tap), and any tap closes it.
+
 ## Stack (do not add to this without asking)
 - React 18 + TypeScript + Vite
 - Tailwind CSS
@@ -143,7 +147,7 @@ whitespace through a phone-width column.
 - Contains text and nothing else. No toolbars, no progress bar, no chrome of any
   kind while reading.
   Two exceptions, both graphite and both taken away: the exit arrow that fades
-  after opening, and the first-run tutorial line (flip, return, save), which
+  after opening, and the first-run tutorial line (flip, return, save, hold), which
   disappears for good once done or skipped. Replayable from Settings.
 - Dark mode is deep teal (`lamp`), never pure black.
 - Font size control in settings: 16 / 19 / 22px. Needed because

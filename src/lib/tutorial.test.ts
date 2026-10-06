@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { advance } from './tutorial';
 
 describe('advance', () => {
-  it('walks flip → return → save → done on the right gestures', () => {
+  it('walks flip → return → save → define → done on the right gestures', () => {
     expect(advance('flip', 'en')).toBe('return');
     expect(advance('return', 'de')).toBe('save');
-    expect(advance('save', 'saved')).toBe('done');
+    expect(advance('save', 'saved')).toBe('define');
+    expect(advance('define', 'defined')).toBe('done');
   });
 
   it('ignores gestures out of order', () => {
@@ -13,6 +14,8 @@ describe('advance', () => {
     expect(advance('flip', 'de')).toBe('flip');
     expect(advance('return', 'saved')).toBe('return');
     expect(advance('save', 'en')).toBe('save');
+    expect(advance('save', 'defined')).toBe('save');
+    expect(advance('define', 'saved')).toBe('define');
   });
 
   it('stays done', () => {

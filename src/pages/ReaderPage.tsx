@@ -6,6 +6,7 @@ import ReaderChrome from '@/components/ReaderChrome';
 import ReaderMissing from '@/components/ReaderMissing';
 import ReaderTrack from '@/components/ReaderTrack';
 import ReaderTutorial from '@/components/ReaderTutorial';
+import DefinitionBubble from '@/components/DefinitionBubble';
 import { useCurrentParagraph } from '@/hooks/useCurrentParagraph';
 import { useDwell } from '@/hooks/useDwell';
 import { useReadingSession } from '@/hooks/useReadingSession';
@@ -14,20 +15,12 @@ import { useSavedWords } from '@/hooks/useSavedWords';
 import { useSwipe } from '@/hooks/useSwipe';
 import { useFlipHint } from '@/hooks/useFlipHint';
 import { useWordSaving } from '@/hooks/useWordSaving';
+import { useWordHold } from '@/hooks/useWordHold';
 import { lemmatizeDocument } from '@/lib/lemma/lemmatizeDocument';
 import { lemmasOf, recordSightings } from '@/lib/sightings';
-import { positionOf, scrollTopFor } from '@/lib/readingPosition';
+import { LANDING_OFFSET, positionOf, scrollToParagraph, scrollTopFor } from '@/lib/readingPosition';
 
 type Side = 'de' | 'en';
-
-/** Breathing room above the paragraph a flip or a restore lands on. */
-const LANDING_OFFSET = 28;
-
-function scrollToParagraph(pane: HTMLElement | null, index: number) {
-  const el = pane?.querySelector<HTMLElement>(`[data-index="${index}"]`);
-  if (!pane || !el) return;
-  pane.scrollTop = Math.max(0, el.offsetTop - LANDING_OFFSET);
-}
 
 /**
  * Two full-screen views of one document, one language each. They are never
@@ -251,10 +244,15 @@ export default function ReaderPage() {
     [flip, back],
   );
   const swipe = useSwipe(onSwipe);
+  const hold = useWordHold(side);
+  const { consumeTap } = hold;
 
   // Some browsers end a swipe with a click; without this, one gesture both
   // flips the language and saves a word.
-  const ignoreTap = useCallback(() => Date.now() - lastSwipeAt.current < 400, []);
+  const ignoreTap = useCallback(
+    () => Date.now() - lastSwipeAt.current < 400 || consumeTap(),
+    [consumeTap],
+  );
   // `undefined` and `null` are two different absences here, but to a tap
   // handler with no document they are the same one.
   const onWordTap = useWordSaving({ doc: doc ?? null, saved, save, remove, touch, ignoreTap });
@@ -268,6 +266,7 @@ export default function ReaderPage() {
   return (
     <div
       {...swipe}
+      {...hold.handlers}
       className="fixed inset-0 overflow-hidden bg-paper dark:bg-lamp"
       onScrollCapture={touch}
       onClick={onWordTap}
@@ -291,7 +290,9 @@ export default function ReaderPage() {
         onFlip={() => flip(side === 'de' ? 'en' : 'de')}
       />
 
-      <ReaderTutorial side={side} savedCount={saved.size} />
+      <DefinitionBubble held={hold.held} bubbleRef={hold.bubbleRef} doc={doc} saved={saved} />
+
+      <ReaderTutorial side={side} savedCount={saved.size} definedCount={hold.opened} />
     </div>
   );
 }

@@ -1,19 +1,20 @@
 import { FLIPPED_KEY } from '@/hooks/useFlipHint';
 
 /**
- * The first-run walk through the reader's two gestures, taught by doing them.
+ * The first-run walk through the reader's gestures, taught by doing them.
  *
- * Nothing on the reading screen advertises the flip or the save, and a
- * newcomer handed a bare page of German had no way to guess either. Each step
- * waits for the gesture it names, so the lesson is the gesture itself.
+ * Nothing on the reading screen advertises the flip, the save or the held
+ * definition, and a newcomer handed a bare page of German had no way to guess
+ * any of them. Each step waits for the gesture it names, so the lesson is the
+ * gesture itself.
  */
-export type TutorialStep = 'flip' | 'return' | 'save' | 'done';
+export type TutorialStep = 'flip' | 'return' | 'save' | 'define' | 'done';
 
-/** What the reader just did: landed on a side, or saved a word. */
-export type TutorialEvent = 'en' | 'de' | 'saved';
+/** What the reader just did: landed on a side, saved a word, or held one. */
+export type TutorialEvent = 'en' | 'de' | 'saved' | 'defined';
 
 /** The steps with a caption and a place in the count. */
-export const TUTORIAL_STEPS: readonly TutorialStep[] = ['flip', 'return', 'save'];
+export const TUTORIAL_STEPS: readonly TutorialStep[] = ['flip', 'return', 'save', 'define'];
 
 /** Set once the tutorial has been finished or skipped. */
 export const TUTORIAL_KEY = 'blatt:tutorial-done';
@@ -26,7 +27,8 @@ export const TUTORIAL_KEY = 'blatt:tutorial-done';
 export function advance(step: TutorialStep, event: TutorialEvent): TutorialStep {
   if (step === 'flip' && event === 'en') return 'return';
   if (step === 'return' && event === 'de') return 'save';
-  if (step === 'save' && event === 'saved') return 'done';
+  if (step === 'save' && event === 'saved') return 'define';
+  if (step === 'define' && event === 'defined') return 'done';
   return step;
 }
 

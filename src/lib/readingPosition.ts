@@ -75,3 +75,13 @@ export function scrollTopFor(
   const into = paragraph.height * position.fraction;
   return Math.max(0, paragraph.top + into - landingOffset);
 }
+
+/** Breathing room above the paragraph a flip or a restore lands on. */
+export const LANDING_OFFSET = 28;
+
+/** Put paragraph `index` at the top of `pane`, with the landing offset above it. */
+export function scrollToParagraph(pane: HTMLElement | null, index: number) {
+  const el = pane?.querySelector<HTMLElement>(`[data-index="${index}"]`);
+  if (!pane || !el) return;
+  pane.scrollTop = Math.max(0, el.offsetTop - LANDING_OFFSET);
+}
