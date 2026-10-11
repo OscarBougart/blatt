@@ -57,6 +57,27 @@ async function fetchOne(surface: string, signal?: AbortSignal): Promise<FormLook
   return german ? parseGerman(german) : null;
 }
 
+function resolves(lookup: FormLookup | null): boolean {
+  return Boolean(lookup && (lookup.lemma || lookup.isLemma));
+}
+
+/**
+ * Pick between the exact lookup and the lowercased retry.
+ *
+ * When only the lowercase resolves, the surface itself is not a citation form:
+ * its lowercase is. Saying `isLemma` there would make the capitalised `Dann`
+ * the lemma, and Wiktionary has no German entry under that.
+ */
+export function chooseForm(
+  lower: string,
+  exact: FormLookup | null,
+  lowered: FormLookup | null,
+): FormLookup | null {
+  if (resolves(exact)) return exact;
+  if (lowered && resolves(lowered)) return { lemma: lowered.lemma ?? lower, isLemma: false };
+  return exact;
+}
+
 /**
  * Look a surface form up, trying the exact form first and then a lowercased
  * retry.
@@ -70,10 +91,10 @@ export async function lookupForm(
   signal?: AbortSignal,
 ): Promise<FormLookup | null> {
   const exact = await fetchOne(surface, signal);
-  if (exact && (exact.lemma || exact.isLemma)) return exact;
+  if (resolves(exact)) return exact;
 
   const lower = surface.charAt(0).toLowerCase() + surface.slice(1);
   if (lower === surface) return exact;
 
-  return (await fetchOne(lower, signal)) ?? exact;
+  return chooseForm(lower, exact, await fetchOne(lower, signal));
 }

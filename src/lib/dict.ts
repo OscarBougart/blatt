@@ -15,6 +15,19 @@ export { fetchDefinitions };
  * never cached, so it will be retried; an empty result is cached, so it is not.
  */
 export async function lookupDefinition(lemma: string): Promise<DictEntry | null> {
+  const entry = await lookupExact(lemma);
+  if (!entry || entry.definitions.length > 0) return entry;
+
+  // A sentence-initial `Dann` can reach here capitalised: documents imported
+  // before the lemma pass learned which casing matched still carry it. Its
+  // lowercase is where Wiktionary keeps the meaning.
+  const lower = lemma.charAt(0).toLowerCase() + lemma.slice(1);
+  if (lower === lemma) return entry;
+  const fallback = await lookupExact(lower);
+  return fallback && fallback.definitions.length > 0 ? fallback : entry;
+}
+
+async function lookupExact(lemma: string): Promise<DictEntry | null> {
   const cached = await db.dict.get(lemma);
   if (cached) return cached;
 

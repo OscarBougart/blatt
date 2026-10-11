@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { isResolved, lemmatize, offlineCandidates } from './cascade';
+import { chooseForm } from './wiktionary';
 import { clauseContaining, tokenize, uniqueTokens } from './tokenize';
 import { reverseUmlaut } from './suffix';
 import { rank } from './types';
@@ -228,5 +229,38 @@ describe('the Wiktionary stage', () => {
       },
     });
     expect(result.map((c) => c.lemma)).toContain('Haus');
+  });
+});
+
+describe('chooseForm', () => {
+  it('keeps the exact form when it resolves', () => {
+    const exact = { lemma: 'Name', isLemma: false };
+    expect(chooseForm('namen', exact, { lemma: null, isLemma: true })).toBe(exact);
+  });
+
+  it('makes the lowercase the lemma when only it is a citation form', () => {
+    expect(chooseForm('dann', null, { lemma: null, isLemma: true })).toEqual({
+      lemma: 'dann',
+      isLemma: false,
+    });
+  });
+
+  it('takes the lowercase form-of lemma', () => {
+    expect(chooseForm('wäre', null, { lemma: 'sein', isLemma: false })).toEqual({
+      lemma: 'sein',
+      isLemma: false,
+    });
+  });
+
+  it('returns the exact lookup when neither resolves', () => {
+    const exact = { lemma: null, isLemma: false };
+    expect(chooseForm('xyz', exact, null)).toBe(exact);
+  });
+
+  it('feeds a lowercase lemma into the cascade, not the capitalised surface', async () => {
+    const result = await lemmatize('Dann', {
+      resolveForm: async () => chooseForm('dann', null, { lemma: null, isLemma: true }),
+    });
+    expect(result[0].lemma).toBe('dann');
   });
 });
